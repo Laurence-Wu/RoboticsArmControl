@@ -197,7 +197,7 @@ class SimpleRobotController:
     
     def move_joint(self, joint_name, angle, speed=100):
         """
-        Move a joint to target angle with safety checks.
+        Move a joint to target angle with constraint validation.
         
         Args:
             joint_name: Joint name (e.g., 'joint1', 'gripper')
@@ -215,12 +215,55 @@ class SimpleRobotController:
             print(f"⚠️  {joint_name} (ID: {motor_id}) is not responding - skipping movement")
             return False
         
-        # Check limits
-        min_angle, max_angle = self.joint_limits[joint_name]
-        if angle < min_angle or angle > max_angle:
-            print(f"❌ Angle {angle}° out of range for {joint_name} ({min_angle}° to {max_angle}°)")
-            return False
+        # Get current position for constraint validation
+        current_angle = self.current_positions.get(joint_name, 0.0)
         
+        # Apply constraint validation
+        try:
+            from joint_constraint_manager import validate_movement
+            validation = validate_movement(joint_name, angle, speed, current_angle)
+            
+            # Check if movement is valid
+            if not validation.is_valid:
+                print(f"❌ Movement validation failed for {joint_name}:")
+                for violation in validation.violations:
+                    print(f"   - {violation.violation_message} ({violation.severity})")
+                
+                # Check if it's a critical violation (emergency stop)
+                critical_violations = [v for v in validation.violations if v.severity == "critical"]
+                if critical_violations:
+                    print(f"🚨 Emergency stop applied for {joint_name}")
+                    return False
+                
+                # For non-critical violations, use adjusted values
+                if validation.adjusted_angle != angle or validation.adjusted_speed != speed:
+                    print(f"🔄 Using adjusted values for {joint_name}:")
+                    print(f"   Angle: {angle}° → {validation.adjusted_angle}°")
+                    print(f"   Speed: {speed} → {validation.adjusted_speed}")
+                    angle = validation.adjusted_angle
+                    speed = validation.adjusted_speed
+            
+            # Show warnings if any
+            if validation.warnings:
+                print(f"⚠️  Warnings for {joint_name}:")
+                for warning in validation.warnings:
+                    print(f"   - {warning}")
+            
+            # Show applied constraints if any
+            if validation.applied_constraints:
+                print(f"🔧 Applied constraints for {joint_name}:")
+                for constraint in validation.applied_constraints:
+                    print(f"   - {constraint}")
+                    
+        except ImportError:
+            # Fallback to basic limit checking if constraint manager not available
+            print("⚠️  Constraint manager not available - using basic limit checking")
+            min_angle, max_angle = self.joint_limits[joint_name]
+            if angle < min_angle or angle > max_angle:
+                print(f"❌ Angle {angle}° out of range for {joint_name} ({min_angle}° to {max_angle}°)")
+                return False
+        
+        # Execute the movement
         if self.move_servo(motor_id, angle, speed):
             self.current_positions[joint_name] = angle
             print(f"✅ Moved {joint_name} to {angle}°")
@@ -230,17 +273,77 @@ class SimpleRobotController:
     
     def move_multiple_joints(self, joint_angles, speed=100):
         """
-        Move multiple joints simultaneously.
+        Move multiple joints simultaneously with constraint validation.
         
         Args:
             joint_angles: Dictionary of joint names and target angles
             speed: Movement speed (0-1000)
         """
-        print(f"🤖 Moving joints: {joint_angles}")
+        print(f"🤖 Moving joints with constraint validation: {joint_angles}")
         
+        # Validate all movements before executing
+        validated_movements = {}
+        validation_errors = []
+        
+        try:
+            from joint_constraint_manager import get_constraint_manager
+            constraint_manager = get_constraint_manager()
+            
+            # Check if we're in face tracking mode
+            if constraint_manager.is_face_tracking_mode():
+                print("🎯 Face tracking mode detected - applying fixed joint constraints")
+                fixed_joints = constraint_manager.get_fixed_joints()
+                active_joints = constraint_manager.get_active_joints()
+                
+                # Validate each joint movement
+                for joint, angle in joint_angles.items():
+                    current_angle = self.current_positions.get(joint, 0.0)
+                    validation = constraint_manager.validate_joint_movement(joint, angle, speed, current_angle)
+                    
+                    if validation.is_valid:
+                        validated_movements[joint] = {
+                            'angle': validation.adjusted_angle,
+                            'speed': validation.adjusted_speed
+                        }
+                    else:
+                        validation_errors.append(f"{joint}: {validation.violations[0].violation_message}")
+                        # Check if it's a critical error
+                        critical_violations = [v for v in validation.violations if v.severity == "critical"]
+                        if critical_violations:
+                            print(f"🚨 Critical constraint violation for {joint} - aborting all movements")
+                            return False
+                
+                # Show validation results
+                if validation_errors:
+                    print("⚠️  Validation errors:")
+                    for error in validation_errors:
+                        print(f"   - {error}")
+                
+                if validated_movements:
+                    print(f"✅ Validated movements: {validated_movements}")
+            else:
+                # Not in face tracking mode, validate normally
+                for joint, angle in joint_angles.items():
+                    current_angle = self.current_positions.get(joint, 0.0)
+                    validation = constraint_manager.validate_joint_movement(joint, angle, speed, current_angle)
+                    
+                    if validation.is_valid:
+                        validated_movements[joint] = {
+                            'angle': validation.adjusted_angle,
+                            'speed': validation.adjusted_speed
+                        }
+                    else:
+                        validation_errors.append(f"{joint}: {validation.violations[0].violation_message}")
+                        
+        except ImportError:
+            # Fallback to direct movement if constraint manager not available
+            print("⚠️  Constraint manager not available - using direct movement")
+            validated_movements = {joint: {'angle': angle, 'speed': speed} for joint, angle in joint_angles.items()}
+        
+        # Execute validated movements
         success = True
-        for joint, angle in joint_angles.items():
-            if not self.move_joint(joint, angle, speed):
+        for joint, movement_data in validated_movements.items():
+            if not self.move_joint(joint, movement_data['angle'], movement_data['speed']):
                 success = False
         
         return success

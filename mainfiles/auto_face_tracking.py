@@ -14,17 +14,29 @@ import time
 # YOLO模型相关导入
 try:
     from ultralytics import YOLO
+    import torch
     YOLO_AVAILABLE = True
     print("✅ YOLO库可用")
+    
+    # Check for GPU availability
+    if torch.cuda.is_available():
+        GPU_AVAILABLE = True
+        GPU_DEVICE = torch.cuda.get_device_name(0)
+        print(f"🚀 GPU加速可用: {GPU_DEVICE}")
+    else:
+        GPU_AVAILABLE = False
+        print("⚠️  GPU不可用，使用CPU推理")
+        
 except ImportError:
     YOLO_AVAILABLE = False
+    GPU_AVAILABLE = False
     print("❌ YOLO库不可用，请安装: pip install ultralytics")
 
 #==============================================================================
 #   YOLO人脸检测器初始化
 #==============================================================================
 class YOLOFaceDetector:
-    def __init__(self):
+    def __init__(self, use_gpu=True):
         """初始化YOLO人脸检测器"""
         if not YOLO_AVAILABLE:
             raise ImportError("YOLO库未安装，请运行: pip install ultralytics")
@@ -32,7 +44,23 @@ class YOLOFaceDetector:
         try:
             # 使用YOLOv8n模型，可以检测人脸（person类别）
             self.model = YOLO('yolov8n.pt')  # 自动下载预训练模型
-            print("✅ YOLO模型加载成功")
+            
+            # 启用GPU加速（如果可用且请求）
+            if use_gpu and GPU_AVAILABLE:
+                self.model.to('cuda')  # 移动到GPU
+                print(f"✅ YOLO模型已加载到GPU: {GPU_DEVICE}")
+            else:
+                self.model.to('cpu')  # 确保在CPU上
+                print("✅ YOLO模型已加载到CPU")
+                
+            # 设置推理参数以优化性能
+            self.inference_params = {
+                'conf': 0.5,  # 置信度阈值
+                'iou': 0.45,  # NMS IoU阈值
+                'verbose': False,
+                'device': 'cuda' if (use_gpu and GPU_AVAILABLE) else 'cpu'
+            }
+            
         except Exception as e:
             print(f"❌ YOLO模型加载失败: {e}")
             raise
@@ -43,8 +71,8 @@ class YOLOFaceDetector:
         返回: [(x, y, w, h), ...] 人脸边界框列表
         """
         try:
-            # YOLO推理
-            results = self.model(frame, verbose=False)
+            # YOLO推理（使用优化的参数）
+            results = self.model(frame, **self.inference_params)
             
             faces = []
             for result in results:

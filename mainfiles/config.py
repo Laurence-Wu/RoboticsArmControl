@@ -226,14 +226,14 @@ class PIDControlConfig:
     """PID control configuration for face tracking system."""
     
     # PID Gains for Pan (X-axis / Joint1) - Optimized for PD control
-    PAN_KP = 0.15  # Increased from 0.1 based on TianxingWu approach
-    PAN_KI = 0.0   # Set to 0 for PD control (TianxingWu found PD works better)
-    PAN_KD = 0.08  # Increased from 0.05 for better damping
+    PAN_KP = 0.04  # Increased from 0.1 based on TianxingWu approach
+    PAN_KI = 0.01   # Set to 0 for PD control (TianxingWu found PD works better)
+    PAN_KD = 0.10  # Increased from 0.05 for better damping
     
     # PID Gains for Tilt (Y-axis / Joint4)
-    TILT_KP = 0.15  # Increased from 0.1
-    TILT_KI = 0.0   # Set to 0 for PD control
-    TILT_KD = 0.08  # Increased from 0.05
+    TILT_KP = 0.05  # Increased from 0.1
+    TILT_KI = 0.01   # Set to 0 for PD control
+    TILT_KD = 0.10  # Increased from 0.05
     
     # Control Parameters - Optimized based on TianxingWu approach
     DEAD_ZONE = 10.0  # Reduced from 15.0 - smaller dead zone for more precision
