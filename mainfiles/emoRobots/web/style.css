@@ -1,0 +1,351 @@
+* {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        height: 100vh;
+        overflow: hidden;
+        color: white;
+    }
+
+    /* 全屏按钮样式 */
+    .fullscreen-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        width: 44px;
+        height: 44px;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(10px);
+        z-index: 1000;
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .fullscreen-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.5);
+        color: rgba(255, 255, 255, 1);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .fullscreen-btn:active {
+        transform: translateY(0);
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .fullscreen-btn svg {
+        transition: transform 0.2s ease;
+    }
+
+    .fullscreen-btn:hover svg {
+        transform: scale(1.1);
+    }
+
+    /* 全屏状态下的样式调整 */
+    :fullscreen .fullscreen-btn,
+    :-webkit-full-screen .fullscreen-btn,
+    :-moz-full-screen .fullscreen-btn {
+        background: rgba(0, 0, 0, 0.3);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .container {
+        display: flex;
+        height: 100vh;
+        width: 100vw;
+    }
+
+    /* 左侧状态指示区域 */
+    .status-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.2);
+        position: relative;
+    }
+
+    .status-indicator {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        margin-bottom: 30px;
+        transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .status-indicator.focused {
+        background: radial-gradient(circle, #ff4757, #ff3742);
+        box-shadow: 0 0 80px rgba(255, 71, 87, 0.8), 0 20px 60px rgba(0, 0, 0, 0.4);
+        animation: focusedPulse 2s infinite;
+    }
+
+    .status-indicator.distracted {
+        background: radial-gradient(circle, #2ed573, #17c0eb);
+        box-shadow: 0 0 80px rgba(46, 213, 115, 0.8), 0 20px 60px rgba(0, 0, 0, 0.4);
+        animation: distractedPulse 3s infinite;
+    }
+
+    @keyframes focusedPulse {
+        0%, 100% { 
+            transform: scale(1);
+            box-shadow: 0 0 80px rgba(255, 71, 87, 0.8), 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+        50% { 
+            transform: scale(1.1);
+            box-shadow: 0 0 120px rgba(255, 71, 87, 1), 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+    }
+
+    @keyframes distractedPulse {
+        0%, 100% { 
+            transform: scale(1);
+            box-shadow: 0 0 80px rgba(46, 213, 115, 0.8), 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+        50% { 
+            transform: scale(1.1);
+            box-shadow: 0 0 120px rgba(46, 213, 115, 1), 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+    }
+
+    .status-text {
+        font-size: 2.5rem;
+        font-weight: 700;
+        text-align: center;
+        transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        margin-bottom: 20px;
+    }
+
+    .status-text.focused {
+        color: #ff4757;
+        text-shadow: 0 0 30px rgba(255, 71, 87, 0.8);
+    }
+
+    .status-text.distracted {
+        color: #2ed573;
+        text-shadow: 0 0 30px rgba(46, 213, 115, 0.8);
+    }
+
+    .connection-status {
+        position: absolute;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 1.1rem;
+        opacity: 0.8;
+        transition: all 0.3s ease;
+        padding: 8px 16px;
+        border-radius: 20px;
+        background: rgba(0, 0, 0, 0.3);
+    }
+
+    .connection-status.connected {
+        color: #2ed573;
+        border-left: 4px solid #2ed573;
+    }
+
+    .connection-status.disconnected {
+        color: #ff4757;
+        border-left: 4px solid #ff4757;
+    }
+
+    /* 右侧数据显示区域 */
+    .metrics-section {
+
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 40px;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-rows: repeat(3, 1fr);
+        gap: 25px;
+        height: 100%;
+    }
+
+    .metric-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 25px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(10px);
+    }
+
+    .metric-card:hover {
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateX(5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .metric-label {
+        font-size: 1.8rem;
+        font-weight: 600;
+        opacity: 0.9;
+        color: #ffffff;
+    }
+
+    .metric-value {
+        font-size: 2.2rem;
+        font-weight: 700;
+        font-family: 'SF Mono', Monaco, 'Consolas', monospace;
+        color: #00d4ff;
+        text-shadow: 0 2px 4px rgba(0, 212, 255, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .metric-value.updating {
+        animation: valueUpdate 0.5s ease;
+    }
+
+    @keyframes valueUpdate {
+        0% { 
+            transform: scale(1);
+            color: #00d4ff;
+        }
+        50% { 
+            transform: scale(1.1);
+            color: #ff6b6b;
+        }
+        100% { 
+            transform: scale(1);
+            color: #00d4ff;
+        }
+    }
+
+    /* 特殊状态样式 */
+    .metric-card.attention {
+        border-left: 4px solid #ff6b6b;
+    }
+
+    .metric-card.engagement {
+        border-left: 4px solid #4ecdc4;
+    }
+
+    .metric-card.composite {
+        border-left: 4px solid #ffa726;
+        background: rgba(255, 167, 38, 0.1);
+    }
+
+    .metric-card.composite .metric-value {
+        color: #ffa726;
+        font-size: 2.5rem;
+    }
+
+    /* 加载动画 */
+    .loading {
+        animation: loadingPulse 1.5s infinite;
+    }
+
+    @keyframes loadingPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* 横屏专用媒体查询 */
+    @media (orientation: landscape) and (max-height: 600px) {
+        .fullscreen-btn {
+            width: 36px;
+            height: 36px;
+            top: 15px;
+            left: 15px;
+        }
+        
+        .fullscreen-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .status-indicator {
+            width: 160px;
+            height: 160px;
+        }
+        
+        .status-text {
+            font-size: 2rem;
+        }
+        
+        .metric-label {
+            font-size: 1.5rem;
+        }
+        
+        .metric-value {
+            font-size: 1.8rem;
+        }
+        
+        .metrics-grid {
+            gap: 20px;
+        }
+        
+        .metric-card {
+            padding: 20px 25px;
+        }
+    }
+
+    /* 超小屏幕适配 */
+    @media (max-height: 500px) {
+        .fullscreen-btn {
+            width: 32px;
+            height: 32px;
+            top: 10px;
+            left: 10px;
+        }
+        
+        .fullscreen-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+        
+        .container {
+            padding: 10px;
+        }
+        
+        .status-indicator {
+            width: 120px;
+            height: 120px;
+        }
+        
+        .status-text {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .metrics-section {
+            padding: 20px;
+        }
+        
+        .metric-card {
+            padding: 15px 20px;
+        }
+        
+        .metric-label {
+            font-size: 1.2rem;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+        }
+    }
