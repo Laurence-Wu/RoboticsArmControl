@@ -160,7 +160,7 @@ class SimpleRobotController:
         except Exception as e:
             print(f"❌ Failed to read positions: {e}")
     
-    def move_servo(self, motor_id, angle, speed=100):
+    def move_servo(self, motor_id, angle, speed=100, velocity=None):
         """
         Move a single servo to target angle.
         
@@ -168,6 +168,7 @@ class SimpleRobotController:
             motor_id: Motor ID (0-6)
             angle: Target angle in degrees
             speed: Movement speed (0-1000)
+            velocity: Movement velocity in dps (optional)
         """
         if not self.is_connected:
             print("❌ Robot not connected")
@@ -179,8 +180,11 @@ class SimpleRobotController:
             if current_angle is None:
                 print(f"⚠️  Servo {motor_id} not responding - attempting to move anyway")
             
-            # Set servo angle with speed control
-            result = self.servo_manager.set_servo_angle(motor_id, angle, speed)
+            # Set servo angle with speed or velocity control
+            if velocity is not None:
+                result = self.servo_manager.set_servo_angle(motor_id, angle, velocity=velocity)
+            else:
+                result = self.servo_manager.set_servo_angle(motor_id, angle, speed)
             
             # Give servo time to start moving
             time.sleep(0.1)
@@ -195,7 +199,7 @@ class SimpleRobotController:
             print(f"❌ Failed to move servo {motor_id}: {e}")
             return False
     
-    def move_joint(self, joint_name, angle, speed=100):
+    def move_joint(self, joint_name, angle, speed=100, velocity=None):
         """
         Move a joint to target angle with safety checks.
         
@@ -203,6 +207,7 @@ class SimpleRobotController:
             joint_name: Joint name (e.g., 'joint1', 'gripper')
             angle: Target angle in degrees
             speed: Movement speed (0-1000)
+            velocity: Movement velocity in dps (optional)
         """
         if joint_name not in self.motor_ids:
             print(f"❌ Unknown joint: {joint_name}")
@@ -221,26 +226,27 @@ class SimpleRobotController:
             print(f"❌ Angle {angle}° out of range for {joint_name} ({min_angle}° to {max_angle}°)")
             return False
         
-        if self.move_servo(motor_id, angle, speed):
+        if self.move_servo(motor_id, angle, speed, velocity=velocity):
             self.current_positions[joint_name] = angle
             print(f"✅ Moved {joint_name} to {angle}°")
             return True
         
         return False
     
-    def move_multiple_joints(self, joint_angles, speed=100):
+    def move_multiple_joints(self, joint_angles, speed=100, velocity=None):
         """
         Move multiple joints simultaneously.
         
         Args:
             joint_angles: Dictionary of joint names and target angles
             speed: Movement speed (0-1000)
+            velocity: Movement velocity in dps (optional)
         """
         print(f"🤖 Moving joints: {joint_angles}")
         
         success = True
         for joint, angle in joint_angles.items():
-            if not self.move_joint(joint, angle, speed):
+            if not self.move_joint(joint, angle, speed, velocity=velocity):
                 success = False
         
         return success

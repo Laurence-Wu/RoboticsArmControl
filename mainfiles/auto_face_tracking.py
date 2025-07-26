@@ -80,17 +80,19 @@ class YOLOFaceDetector:
 #   目标跟踪状态管理类（修改为2秒）
 #==============================================================================
 class TargetTracker:
-    def __init__(self, lock_duration=2.0, movement_threshold=30):
+    def __init__(self, lock_duration=2.0, movement_threshold=30, start_position_file="positions/HOME.json"):
         """
         目标跟踪管理器
         :param lock_duration: 目标丢失后的锁定时间（秒）- 改为2秒
         :param movement_threshold: 目标移动的最小阈值（像素）
+        :param start_position_file: 起始位置JSON文件路径
         """
         self.lock_duration = lock_duration
         self.movement_threshold = movement_threshold
+        self.start_position_file = start_position_file
         
         # 当前锁定的目标位置
-        self.locked_position = (320, 240)  # 默认中心位置
+        self.locked_position = (960, 540)  # 1920x1080的中心点
         self.locked_time = None  # 目标锁定开始时间
         self.last_detection_time = time.time()  # 最后一次检测到目标的时间
         
@@ -99,11 +101,17 @@ class TargetTracker:
         self.is_locked = False
         
         # 智能回中参数
-        self.center_position = (320, 240)
+        self.center_position = (960, 540)  # 1920x1080的中心点
         self.return_to_center_mode = False
         self.center_return_speed = 0.1  # 回中速度系数
         
+        # 返回HOME位置状态
+        self.is_moving_to_start = False
+        self.movement_start_time = None
+        self.movement_timeout = 10.0  # 移动超时时间（秒）
+        
         print(f"🎯 目标跟踪器初始化 - 锁定时间: {lock_duration}秒, 移动阈值: {movement_threshold}像素")
+        print(f"🏠 无人检测2秒后将快速返回HOME位置")
     
     def update_target(self, detected_position):
         """
@@ -112,6 +120,18 @@ class TargetTracker:
         :return: 最终的目标位置 (x, y)
         """
         current_time = time.time()
+        
+        # 检查是否正在移动到HOME位置
+        if self.is_moving_to_start:
+            # 检查移动超时
+            if self.movement_start_time and (current_time - self.movement_start_time) > self.movement_timeout:
+                print("⏰ 移动超时，强制恢复视觉识别")
+                self.is_moving_to_start = False
+                self.movement_start_time = None
+            else:
+                # 移动期间暂停视觉识别，返回最后已知位置
+                print("⏸️  机器人快速返回HOME中，暂停视觉识别...")
+                return self.locked_position
         
         if detected_position is not None:
             # 检测到目标
@@ -148,9 +168,14 @@ class TargetTracker:
             # 检查锁定时间是否过期
             if self.locked_time and (current_time - self.locked_time) > self.lock_duration:
                 if (current_time - self.last_detection_time) > self.lock_duration:
-                    print("🔓 锁定时间到期，目标确实丢失，启动智能回中")
-                    self.return_to_center_mode = True
+                    print("🔓 锁定时间到期，目标确实丢失，快速返回HOME位置")
+                    self._move_to_start_position()
+                    # 重置所有状态，立即重新开始识别
+                    self.target_lost = False
                     self.is_locked = False
+                    self.locked_time = None
+                    self.return_to_center_mode = False
+                    print("🔄 状态重置，重新开始识别和运动")
             
             if self.return_to_center_mode:
                 # 智能回中：逐渐向中心移动，而不是直接跳到中心
@@ -191,9 +216,84 @@ class TargetTracker:
         """计算两点之间的距离"""
         return np.sqrt((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)
     
+    def _move_to_start_position(self):
+        """移动到起始位置"""
+        try:
+            print("🏠 检测到2秒无人，快速返回HOME位置")
+            print("⏸️  暂停视觉识别，等待机器人移动完成...")
+            
+            # 设置移动状态
+            self.is_moving_to_start = True
+            self.movement_start_time = time.time()
+            
+            # 设置全局机器人移动锁，防止PID命令干扰
+            try:
+                from main import set_robot_movement_lock
+                set_robot_movement_lock(True)
+            except ImportError:
+                print("⚠️  无法导入main模块的移动锁功能")
+            
+            # 直接导入并调用move_to_home_position函数，使用最大速度
+            from move_to_json import move_to_home_position
+            
+            # 调用函数，使用最大速度返回HOME
+            success = move_to_home_position(speed=70, velocity=70, verbose=False)
+            
+            # 移动完成，重置状态
+            self.is_moving_to_start = False
+            self.movement_start_time = None
+            
+            # 解除全局机器人移动锁
+            try:
+                from main import set_robot_movement_lock
+                set_robot_movement_lock(False)
+            except ImportError:
+                print("⚠️  无法导入main模块的移动锁功能")
+            
+            if success:
+                print("✅ 成功快速返回HOME位置")
+                print("⏳ 等待人类出现...")
+                return True
+            else:
+                print("❌ 返回HOME位置失败")
+                print("▶️  恢复视觉识别")
+                return False
+        except ImportError as e:
+            print(f"❌ 无法导入move_to_json模块: {e}")
+            self.is_moving_to_start = False
+            self.movement_start_time = None
+            # 确保解除移动锁
+            try:
+                from main import set_robot_movement_lock
+                set_robot_movement_lock(False)
+            except ImportError:
+                pass
+            return False
+        except Exception as e:
+            print(f"❌ 移动机器人时出错: {e}")
+            self.is_moving_to_start = False
+            self.movement_start_time = None
+            # 确保解除移动锁
+            try:
+                from main import set_robot_movement_lock
+                set_robot_movement_lock(False)
+            except ImportError:
+                pass
+            return False
+    
+    def is_robot_moving(self):
+        """检查机器人是否正在移动到HOME位置"""
+        return self.is_moving_to_start
+    
     def get_status(self):
         """获取当前状态"""
-        if self.return_to_center_mode:
+        if self.is_moving_to_start:
+            if self.movement_start_time:
+                elapsed = time.time() - self.movement_start_time
+                return f"MOVING_TO_START ({elapsed:.1f}s)"
+            else:
+                return "MOVING_TO_START"
+        elif self.return_to_center_mode:
             return "RETURNING_TO_CENTER"
         elif self.target_lost:
             remaining_time = max(0, self.lock_duration - (time.time() - self.locked_time if self.locked_time else 0))
@@ -273,30 +373,30 @@ def Detection(frame):
     #==========================================================================
     #     绘制参考线和状态信息
     #==========================================================================
-    # 绘制画面中心十字线
-    cv2.line(frame, (310, 240), (330, 240), (0, 255, 255), 2)  # 水平线
-    cv2.line(frame, (320, 230), (320, 250), (0, 255, 255), 2)  # 垂直线
-    
-    # 绘制参考矩形
-    x = 0; y = 0; w = 320; h = 240;
-    rectangle_pts = np.array([[x,y],[x+w,y],[x+w,y+h],[x,y+h]], np.int32)
-    cv2.polylines(frame, [rectangle_pts], True, (0,255,0), 2)
-    
-    x2 = 320; y2 = 240;
-    rectangle_pts2 = np.array([[x2,y2],[x2+w,y2],[x2+w,y2+h],[x2,y2+h]], np.int32)
-    cv2.polylines(frame, [rectangle_pts2], True, (0,255,0), 2)
+    # 绘制画面中心十字线 (1920x1080的中心点)
+    center_x, center_y = 960, 540
+    cv2.line(frame, (center_x-20, center_y), (center_x+20, center_y), (0, 255, 255), 2)  # 水平线
+    cv2.line(frame, (center_x, center_y-20), (center_x, center_y+20), (0, 255, 255), 2)  # 垂直线
 
     # 显示状态信息
     status = target_tracker.get_status()
     detector_type = "YOLO" if YOLO_AVAILABLE else "Haar"
     
+    # 根据状态设置颜色
+    if "MOVING_TO_START" in status:
+        status_color = (0, 0, 255)  # 红色：移动中
+        face_count = "PAUSED"
+    else:
+        status_color = (0, 255, 255)  # 青色：正常
+        face_count = str(len(faces))
+    
     cv2.putText(frame, f'Target: ({centroid_X}, {centroid_Y})', (10, 30), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     cv2.putText(frame, f'Status: {status}', (10, 60), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, status_color, 2)
     cv2.putText(frame, f'Detector: {detector_type}', (10, 90), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-    cv2.putText(frame, f'Faces: {len(faces)}', (10, 120), 
+    cv2.putText(frame, f'Faces: {face_count}', (10, 120), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     
     # 图例
@@ -331,7 +431,7 @@ if __name__  == "__main__":
     print("  - 绿色圆点：实时检测到的人脸位置")
     print("  - 蓝色圆点：最终跟踪目标位置")
     print("  - 黄色连线：检测位置与跟踪位置的连接")
-    print("  - 目标丢失后锁定2秒，避免频繁移动")
+    print("  - 目标丢失后锁定2秒，然后快速返回HOME位置")
     print("=" * 60)
 
     # 如果YOLO不可用，显示安装说明

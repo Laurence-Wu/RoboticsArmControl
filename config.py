@@ -20,7 +20,7 @@ class SerialConfig:
     """Serial communication settings."""
     
     # Default USB ports (update these with your actual ports)
-    DEFAULT_PORT = "/dev/tty.usbserial-14230"
+    DEFAULT_PORT = "/dev/tty.usbserial-144130"
     LEADER_PORT = "/dev/tty.usbmodem575E0031751"    # For teleoperation leader arm
     FOLLOWER_PORT = "/dev/tty.usbmodem575E0032081"  # For teleoperation follower arm
     

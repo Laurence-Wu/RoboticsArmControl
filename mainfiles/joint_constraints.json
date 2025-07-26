@@ -1,0 +1,172 @@
+{
+  "config_version": "1.0",
+  "last_modified": "2024-12-19T12:00:00Z",
+  "description": "Joint Constraints Configuration for Robot Arm Movement",
+  
+  "joint_constraints": {
+    "joint1": {
+      "position_constraints": {
+        "min_angle": -180.0,
+        "max_angle": 180.0,
+        "preferred_range": [-90.0, 90.0],
+        "description": "Base rotation - full 360° range with preferred ±90° for face tracking"
+      },
+      "movement_constraints": {
+        "max_speed": 150,
+        "max_acceleration": 50.0,
+        "max_movement_per_step": 15.0,
+        "description": "Movement limits for base rotation"
+      },
+      "safety_constraints": {
+        "emergency_stop_threshold": 45.0,
+        "collision_avoidance_zones": [[-180.0, -150.0], [150.0, 180.0]],
+        "description": "Safety constraints for base rotation"
+      }
+    },
+    
+    "joint2": {
+      "position_constraints": {
+        "min_angle": -90.0,
+        "max_angle": 90.0,
+        "preferred_range": [-60.0, 60.0],
+        "target_position": -42.4,
+        "description": "Shoulder joint - constrained range with fixed target for face tracking"
+      },
+      "movement_constraints": {
+        "max_speed": 100,
+        "max_acceleration": 30.0,
+        "max_movement_per_step": 10.0,
+        "description": "Movement limits for shoulder joint"
+      },
+      "safety_constraints": {
+        "emergency_stop_threshold": 30.0,
+        "collision_avoidance_zones": [[-90.0, -80.0], [80.0, 90.0]],
+        "description": "Safety constraints for shoulder joint"
+      }
+    },
+    
+    "joint3": {
+      "position_constraints": {
+        "min_angle": -135.0,
+        "max_angle": 135.0,
+        "preferred_range": [-150.0, -120.0],
+        "target_position": -132.0,
+        "description": "Elbow joint - constrained range with fixed target for face tracking"
+      },
+      "movement_constraints": {
+        "max_speed": 100,
+        "max_acceleration": 25.0,
+        "max_movement_per_step": 8.0,
+        "description": "Movement limits for elbow joint"
+      },
+      "safety_constraints": {
+        "emergency_stop_threshold": 25.0,
+        "collision_avoidance_zones": [[-135.0, -130.0], [130.0, 135.0]],
+        "description": "Safety constraints for elbow joint"
+      }
+    },
+    
+    "joint4": {
+      "position_constraints": {
+        "min_angle": -90.0,
+        "max_angle": 90.0,
+        "preferred_range": [-45.0, 45.0],
+        "description": "Wrist 1 - limited range for stability"
+      },
+      "movement_constraints": {
+        "max_speed": 120,
+        "max_acceleration": 40.0,
+        "max_movement_per_step": 12.0,
+        "description": "Movement limits for wrist 1"
+      },
+      "safety_constraints": {
+        "emergency_stop_threshold": 35.0,
+        "collision_avoidance_zones": [[-90.0, -80.0], [80.0, 90.0]],
+        "description": "Safety constraints for wrist 1"
+      }
+    },
+    
+    "joint5": {
+      "position_constraints": {
+        "min_angle": -180.0,
+        "max_angle": 180.0,
+        "preferred_range": [-90.0, 90.0],
+        "description": "Wrist 2 - full range for face tracking tilt"
+      },
+      "movement_constraints": {
+        "max_speed": 150,
+        "max_acceleration": 50.0,
+        "max_movement_per_step": 15.0,
+        "description": "Movement limits for wrist 2 (tilt for face tracking)"
+      },
+      "safety_constraints": {
+        "emergency_stop_threshold": 45.0,
+        "collision_avoidance_zones": [[-180.0, -150.0], [150.0, 180.0]],
+        "description": "Safety constraints for wrist 2"
+      }
+    },
+    
+    "joint6": {
+      "position_constraints": {
+        "min_angle": -180.0,
+        "max_angle": 180.0,
+        "preferred_range": [-90.0, 90.0],
+        "description": "Wrist rotation - full range available"
+      },
+      "movement_constraints": {
+        "max_speed": 100,
+        "max_acceleration": 30.0,
+        "max_movement_per_step": 10.0,
+        "description": "Movement limits for wrist rotation"
+      },
+      "safety_constraints": {
+        "emergency_stop_threshold": 30.0,
+        "collision_avoidance_zones": [[-180.0, -150.0], [150.0, 180.0]],
+        "description": "Safety constraints for wrist rotation"
+      }
+    },
+    
+    "gripper": {
+      "position_constraints": {
+        "min_angle": -90.0,
+        "max_angle": 90.0,
+        "preferred_range": [-45.0, 45.0],
+        "open_position": 45.0,
+        "closed_position": -45.0,
+        "description": "Gripper - limited range with predefined open/closed positions"
+      },
+      "movement_constraints": {
+        "max_speed": 80,
+        "max_acceleration": 20.0,
+        "max_movement_per_step": 5.0,
+        "description": "Movement limits for gripper"
+      },
+      "safety_constraints": {
+        "emergency_stop_threshold": 20.0,
+        "collision_avoidance_zones": [[-90.0, -80.0], [80.0, 90.0]],
+        "description": "Safety constraints for gripper"
+      }
+    }
+  },
+  
+  "global_constraints": {
+    "face_tracking_mode": {
+      "enabled": true,
+      "fixed_joints": {
+        "joint2": -42.4,
+        "joint3": -132.0
+      },
+      "active_joints": ["joint1", "joint5"],
+      "description": "Face tracking mode constraints - fixes arm configuration"
+    },
+    "safety_timeout": 30.0,
+    "max_concurrent_movements": 3,
+    "collision_detection_enabled": true
+  },
+  
+  "validation_ranges": {
+    "angle_tolerance": 2.0,
+    "speed_tolerance": 10,
+    "acceleration_tolerance": 5.0
+  }
+} 

@@ -59,6 +59,137 @@ except ImportError as e:
     AUTO_FACE_TRACKING_AVAILABLE = False
     print(f"⚠️  Auto face tracking module not available: {e}")
 
+# Global robot movement state to prevent command conflicts
+ROBOT_MOVEMENT_LOCK = False
+
+def set_robot_movement_lock(locked: bool):
+    """Set global robot movement lock to prevent command conflicts"""
+    global ROBOT_MOVEMENT_LOCK
+    ROBOT_MOVEMENT_LOCK = locked
+    if locked:
+        print("🔒 Robot movement locked - preventing PID commands")
+    else:
+        print("🔓 Robot movement unlocked - PID commands resumed")
+
+def is_robot_movement_locked() -> bool:
+    """Check if robot movement is currently locked"""
+    global ROBOT_MOVEMENT_LOCK
+    return ROBOT_MOVEMENT_LOCK
+
+def check_and_adjust_arm_joints(robot_controller, joint2_target=-42.4, joint3_target=-132.0, tolerance=2.0, speed=100):
+    """
+    Check and adjust both joint2 and joint3 to their target positions.
+    This function ensures both joints are properly positioned together.
+    
+    Args:
+        robot_controller: SimpleRobotController instance
+        joint2_target: Target angle for joint2 (default: -42.4)
+        joint3_target: Target angle for joint3 (default: -132.0)
+        tolerance: Acceptable deviation from target (default: 2.0 degrees)
+        speed: Movement speed (default: 100)
+        
+    Returns:
+        bool: True if both joints are at target angles or were successfully adjusted
+    """
+    if not robot_controller or not robot_controller.is_connected:
+        print("⚠️  Robot controller not available for arm joint adjustment")
+        return False
+    
+    try:
+        print("🔧 Checking and adjusting arm joints (joint2 & joint3)...")
+        
+        # Read current positions for both joints
+        current_joint2 = robot_controller.servo_manager.query_servo_angle(robot_controller.motor_ids["joint2"])
+        current_joint3 = robot_controller.servo_manager.query_servo_angle(robot_controller.motor_ids["joint3"])
+        
+        if current_joint2 is None:
+            print("⚠️  Could not read joint2 position - servo may not be responding")
+            return False
+        
+        if current_joint3 is None:
+            print("⚠️  Could not read joint3 position - servo may not be responding")
+            return False
+        
+        # Check if both joints are within tolerance
+        joint2_diff = abs(current_joint2 - joint2_target)
+        joint3_diff = abs(current_joint3 - joint3_target)
+        
+        joint2_ok = joint2_diff <= tolerance
+        joint3_ok = joint3_diff <= tolerance
+        
+        # Report current status
+        print(f"📊 Current positions: Joint2={current_joint2:.1f}°, Joint3={current_joint3:.1f}°")
+        print(f"📊 Target positions: Joint2={joint2_target}°, Joint3={joint3_target}°")
+        
+        if joint2_ok and joint3_ok:
+            print(f"✅ Both joints are at correct positions (tolerance: ±{tolerance}°)")
+            return True
+        
+        # Adjust joints that need adjustment
+        adjustments_made = False
+        
+        if not joint2_ok:
+            print(f"🔄 Adjusting joint2 from {current_joint2:.1f}° to {joint2_target}° (difference: {joint2_diff:.1f}°)")
+            success = robot_controller.move_joint("joint2", joint2_target, speed=speed)
+            if success:
+                print(f"✅ Joint2 successfully adjusted to {joint2_target}°")
+                adjustments_made = True
+            else:
+                print(f"❌ Failed to adjust joint2 to {joint2_target}°")
+                return False
+        
+        if not joint3_ok:
+            print(f"🔄 Adjusting joint3 from {current_joint3:.1f}° to {joint3_target}° (difference: {joint3_diff:.1f}°)")
+            success = robot_controller.move_joint("joint3", joint3_target, speed=speed)
+            if success:
+                print(f"✅ Joint3 successfully adjusted to {joint3_target}°")
+                adjustments_made = True
+            else:
+                print(f"❌ Failed to adjust joint3 to {joint3_target}°")
+                return False
+        
+        if adjustments_made:
+            # Wait a moment and verify final positions
+            import time
+            time.sleep(1.0)
+            
+            final_joint2 = robot_controller.servo_manager.query_servo_angle(robot_controller.motor_ids["joint2"])
+            final_joint3 = robot_controller.servo_manager.query_servo_angle(robot_controller.motor_ids["joint3"])
+            
+            if final_joint2 is not None and final_joint3 is not None:
+                final_joint2_diff = abs(final_joint2 - joint2_target)
+                final_joint3_diff = abs(final_joint3 - joint3_target)
+                
+                if final_joint2_diff <= tolerance and final_joint3_diff <= tolerance:
+                    print(f"✅ Verification: Both joints confirmed at target positions")
+                    print(f"   Joint2: {final_joint2:.1f}°, Joint3: {final_joint3:.1f}°")
+                else:
+                    print(f"⚠️  Verification: Some joints may not have reached target positions")
+                    print(f"   Joint2: {final_joint2:.1f}° (target: {joint2_target}°), Joint3: {final_joint3:.1f}° (target: {joint3_target}°)")
+        
+        return True
+                
+    except Exception as e:
+        print(f"❌ Error checking/adjusting arm joints: {e}")
+        return False
+
+def ensure_arm_configuration(robot_controller, joint2_target=-42.4, joint3_target=-132.0, tolerance=2.0, speed=100):
+    """
+    Ensure both joint2 and joint3 are at their target positions for proper arm configuration.
+    This function checks and adjusts both joints to maintain the correct arm setup.
+    
+    Args:
+        robot_controller: SimpleRobotController instance
+        joint2_target: Target angle for joint2 (default: -42.4)
+        joint3_target: Target angle for joint3 (default: -132.0)
+        tolerance: Acceptable deviation from target (default: 2.0 degrees)
+        speed: Movement speed (default: 100)
+        
+    Returns:
+        bool: True if both joints are properly positioned
+    """
+    return check_and_adjust_arm_joints(robot_controller, joint2_target, joint3_target, tolerance, speed)
+
 @dataclass
 class MotionData:
     """Data structure for motion tracking data"""
@@ -305,6 +436,11 @@ class MotionDataCollector:
     
     def _execute_robot_movement(self, pan_movement: float, tilt_movement: float) -> bool:
         """Execute robot movement with gravity compensation and current positions tracking"""
+        # Check if robot movement is locked (e.g., during return-to-start movement)
+        if is_robot_movement_locked():
+            print("⏸️  Robot movement blocked - robot is executing return-to-start command")
+            return False
+        
         # Apply gravity compensation
         gravity_comp_pan = getattr(self.pid_config, 'GRAVITY_COMPENSATION_JOINT1', 0.0)
         gravity_comp_tilt = getattr(self.pid_config, 'GRAVITY_COMPENSATION_JOINT5', 0)
@@ -321,6 +457,13 @@ class MotionDataCollector:
             return True
         
         try:
+            # Ensure both joint2 and joint3 are at their correct positions for proper arm configuration
+            if self.robot and self.robot.is_connected:
+                arm_config_ok = ensure_arm_configuration(self.robot, joint2_target=-42.4, joint3_target=-132.0, tolerance=2.0, speed=100)
+                if not arm_config_ok:
+                    print("⚠️  Arm configuration adjustment failed - movement may be affected")
+                    # Continue with movement anyway, but log the issue
+            
             # Calculate new target positions with gravity compensation
             new_pan = self.current_positions["joint1"] + compensated_pan
             new_tilt = self.current_positions["joint5"] + compensated_tilt
@@ -521,7 +664,11 @@ class SingleThreadFaceTracker:
                         target_position = (target_x, target_y)
                         confidence = 1.0  # auto_face_tracking doesn't return confidence
                         
-
+                        # Check if robot is moving to start position
+                        if target_tracker.is_robot_moving():
+                            print("⏸️  PID control paused - robot moving to start position")
+                            # Skip PID processing during movement
+                            continue
                         
                         # Create motion data point
                         motion_data = MotionData(
@@ -645,6 +792,11 @@ class SingleThreadFaceTracker:
     
     def execute_movement(self, processed_motion: ProcessedMotion):
         """Execute robot movement based on processed motion data (fallback mode)"""
+        # Check if robot movement is locked (e.g., during return-to-start movement)
+        if is_robot_movement_locked():
+            print("⏸️  Robot movement blocked - robot is executing return-to-start command")
+            return
+        
         # Check if movement is significant enough
         total_movement = abs(processed_motion.pan_angle) + abs(processed_motion.tilt_angle)
         if total_movement < self.dead_zone * 0.1:  # Convert dead_zone to angle equivalent
@@ -679,6 +831,12 @@ class SingleThreadFaceTracker:
         
         # Execute movement
         if self.robot_connected:
+            # Ensure both joint2 and joint3 are at their correct positions for proper arm configuration
+            arm_config_ok = ensure_arm_configuration(self.robot, joint2_target=-42.4, joint3_target=-132.0, tolerance=2.0, speed=100)
+            if not arm_config_ok:
+                print("⚠️  Arm configuration adjustment failed - movement may be affected")
+                # Continue with movement anyway, but log the issue
+            
             self.robot.move_joint("joint1", new_pan, speed=150)
             self.robot.move_joint("joint5", new_tilt, speed=150)
             
@@ -822,10 +980,28 @@ def main():
     print("💡 Press ESC to exit, R to reset system")
     print("=" * 80)
 
-    # Move to home position
+    # Move to home position and ensure joint3 is at correct position
     try:
         import move_to_json
-        move_to_json.move_to_json_positions("positions/startPosition.json", speed=100)
+        move_to_json.move_to_json_positions("positions/HOME.json", speed=100)
+        
+        # Ensure both joint2 and joint3 are at their correct positions for proper arm configuration
+        if ROBOT_AVAILABLE:
+            try:
+                from simple_robot_control import SimpleRobotController
+                temp_robot = SimpleRobotController()
+                if temp_robot.connect():
+                    print("🔧 Checking and adjusting arm configuration (joint2: -42.4°, joint3: -132°)...")
+                    arm_config_ok = ensure_arm_configuration(temp_robot, joint2_target=-42.4, joint3_target=-132.0, tolerance=2.0, speed=100)
+                    if arm_config_ok:
+                        print("✅ Arm configuration properly set for face tracking")
+                    else:
+                        print("⚠️  Arm configuration failed - face tracking may be affected")
+                    temp_robot.disconnect()
+                else:
+                    print("⚠️  Could not connect to robot for arm configuration adjustment")
+            except Exception as e:
+                print(f"⚠️  Could not adjust arm configuration: {e}")
     except Exception as e:
         print(f"⚠️  Could not move to home position: {e}")
     

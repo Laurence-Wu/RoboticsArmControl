@@ -39,14 +39,14 @@ class PIDConfig:
     """Configuration class for PID parameters and system settings."""
     
     # PID Gains for Pan (X-axis / Joint1)
-    PAN_KP: float = 0.15  # Increased from 0.1 based on TianxingWu approach
+    PAN_KP: float = 0.48  # Increased from 0.1 based on TianxingWu approach
     PAN_KI: float = 0.0   # Set to 0 for PD control (TianxingWu approach)
-    PAN_KD: float = 0.08  # Increased from 0.05 for better damping
+    PAN_KD: float = 0.1  # Increased from 0.05 for better damping
     
     # PID Gains for Tilt (Y-axis / Joint4)
-    TILT_KP: float = 0.15  # Increased from 0.1
+    TILT_KP: float = 0.48  # Increased from 0.1
     TILT_KI: float = 0.0   # Set to 0 for PD control (TianxingWu approach)
-    TILT_KD: float = 0.08  # Increased from 0.05
+    TILT_KD: float = 0.1  # Increased from 0.05
     
     # Control Parameters - Optimized based on TianxingWu approach
     DEAD_ZONE: float = 10.0  # Reduced from 15.0 - smaller dead zone for more precision

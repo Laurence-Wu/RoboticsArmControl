@@ -70,13 +70,14 @@ def validate_positions(positions, controller):
     
     return valid_positions
 
-def move_to_json_positions(json_file_path, speed=50, verbose=True):
+def move_to_json_positions(json_file_path, speed=50, velocity=None, verbose=True):
     """
     Move robot to positions specified in a JSON file
     
     Args:
         json_file_path (str): Path to JSON file containing joint positions
         speed (int): Movement speed (0-1000, default: 50)
+        velocity (float or None): Movement velocity in dps (default: None)
         verbose (bool): Whether to print status messages (default: True)
     
     Returns:
@@ -126,8 +127,8 @@ def move_to_json_positions(json_file_path, speed=50, verbose=True):
         
         # Move to target positions
         if verbose:
-            print(f"\n🤖 Moving to target positions (speed: {speed})...")
-        success = controller.move_multiple_joints(target_positions, speed=speed)
+            print(f"\n🤖 Moving to target positions (speed: {speed}, velocity: {velocity})...")
+        success = controller.move_multiple_joints(target_positions, speed=speed, velocity=velocity)
         
         if success:
             if verbose:
@@ -157,12 +158,13 @@ def move_to_json_positions(json_file_path, speed=50, verbose=True):
         if verbose:
             print("👋 Script completed!")
 
-def move_to_home_position(speed=50, verbose=True):
+def move_to_home_position(speed=50, velocity=None, verbose=True):
     """
     Move robot to home position
     
     Args:
         speed (int): Movement speed (0-1000, default: 50)
+        velocity (float or None): Movement velocity in dps (default: None)
         verbose (bool): Whether to print status messages (default: True)
     
     Returns:
@@ -195,8 +197,8 @@ def move_to_home_position(speed=50, verbose=True):
         
         # Move to home position
         if verbose:
-            print(f"\n🤖 Moving to home position (speed: {speed})...")
-        success = controller.move_multiple_joints(HOME_POSITION, speed=speed)
+            print(f"\n🤖 Moving to home position (speed: {speed}, velocity: {velocity})...")
+        success = controller.move_multiple_joints(HOME_POSITION, speed=speed, velocity=velocity)
         
         if success:
             if verbose:
@@ -229,8 +231,9 @@ def move_to_home_position(speed=50, verbose=True):
 def main():
     """Main function to move robot to JSON-specified positions"""
     parser = argparse.ArgumentParser(description='Move robot to positions from JSON file')
-    parser.add_argument('json_file', help='JSON file containing joint positions')
+    parser.add_argument('json_file', nargs='?', help='JSON file containing joint positions')
     parser.add_argument('--speed', type=int, default=50, help='Movement speed (0-1000, default: 50)')
+    parser.add_argument('--velocity', type=float, default=None, help='Movement velocity in dps (default: None)')
     parser.add_argument('--home', action='store_true', help='Move to home position instead')
     parser.add_argument('--show-home', action='store_true', help='Show home position and exit')
     
@@ -246,9 +249,10 @@ def main():
     
     # Determine target positions
     if args.home:
-        success = move_to_home_position(speed=args.speed)
+        # Use max velocity for home movement
+        success = move_to_home_position(speed=args.speed, velocity=70)
     else:
-        success = move_to_json_positions(args.json_file, speed=args.speed)
+        success = move_to_json_positions(args.json_file, speed=args.speed, velocity=args.velocity)
     
     if not success:
         sys.exit(1)

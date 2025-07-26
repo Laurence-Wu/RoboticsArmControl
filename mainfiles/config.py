@@ -20,7 +20,7 @@ class SerialConfig:
     """Serial communication settings."""
     
     # Default USB ports (update these with your actual ports)
-    DEFAULT_PORT = "/dev/tty.usbserial-14230"
+    DEFAULT_PORT = "/dev/tty.usbserial-144130"
     
     # Communication settings
     BAUDRATE = 1000000  # 1 MHz - standard for Fashion Star servos
