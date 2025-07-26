@@ -24,7 +24,7 @@ import argparse
 
 # Import robot configuration
 try:
-    from config import HOME_POSITION
+    from mainfiles.config import HOME_POSITION
     from simple_robot_control import SimpleRobotController
     print("✅ Configuration loaded successfully")
 except ImportError as e:

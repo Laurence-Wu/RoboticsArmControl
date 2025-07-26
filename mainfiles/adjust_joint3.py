@@ -18,7 +18,7 @@ import time
 
 # Import robot configuration
 try:
-    from config import SERIAL_CONFIG, MOTOR_CONFIG
+    from mainfiles.config import SERIAL_CONFIG, MOTOR_CONFIG
     from simple_robot_control import SimpleRobotController
     ROBOT_AVAILABLE = True
 except ImportError as e:

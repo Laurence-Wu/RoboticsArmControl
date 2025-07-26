@@ -28,8 +28,8 @@ except ImportError:
 
 # Import robot configuration
 try:
-    from config import SERIAL_CONFIG, MOTOR_CONFIG
-    from simple_robot_control import SimpleRobotController
+    from mainfiles.config import SERIAL_CONFIG, MOTOR_CONFIG
+    from mainfiles.simple_robot_control import SimpleRobotController
     ROBOT_AVAILABLE = True
 except ImportError:
     ROBOT_AVAILABLE = False
@@ -349,7 +349,7 @@ class UltraOptimizedMotionDataCollector:
         
         # Apply joint limits
         if ROBOT_AVAILABLE:
-            from config import MOTOR_CONFIG
+            from mainfiles.config import MOTOR_CONFIG
             pan_min, pan_max = MOTOR_CONFIG.JOINT_LIMITS["joint1"]
             tilt_min, tilt_max = MOTOR_CONFIG.JOINT_LIMITS["joint5"]
             

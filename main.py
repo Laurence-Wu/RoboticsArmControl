@@ -14,71 +14,330 @@ import sys
 import time
 import threading
 import os
-from typing import Optional
+from typing import Optional, Callable, Dict, Any
+from abc import ABC, abstractmethod
 
 # Add mainfiles to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), 'mainfiles'))
 
-# Import focus detection
-try:
-    from mainfiles.emoRobots.focus_true_false import start_focus_detector, stop_focus_detector, get_focus_status
-    FOCUS_AVAILABLE = True
-    print("✅ Focus detection module imported successfully")
-except ImportError as e:
-    FOCUS_AVAILABLE = False
-    print(f"⚠️  Focus detection module not available: {e}")
 
-# Import robot control
-try:
-    from mainfiles.simple_robot_control import SimpleRobotController
-    from mainfiles.config import SERIAL_CONFIG, MOTOR_CONFIG
-    ROBOT_AVAILABLE = True
-    print("✅ Robot control module imported successfully")
-except ImportError as e:
-    ROBOT_AVAILABLE = False
-    print(f"⚠️  Robot control module not available: {e}")
+# =============================================================================
+# ABSTRACT INTERFACES FOR DECOUPLING
+# =============================================================================
 
-# Import face tracking
-try:
-    from mainfiles.auto_face_tracking import YOLOFaceDetector, TargetTracker, Detection
-    FACE_TRACKING_AVAILABLE = True
-    print("✅ Face tracking module imported successfully")
-except ImportError as e:
-    FACE_TRACKING_AVAILABLE = False
-    print(f"⚠️  Face tracking module not available: {e}")
+class RobotController(ABC):
+    """Abstract interface for robot control"""
+    
+    @abstractmethod
+    def connect(self) -> bool:
+        """Connect to the robot"""
+        pass
+    
+    @abstractmethod
+    def disconnect(self) -> None:
+        """Disconnect from the robot"""
+        pass
+    
+    @abstractmethod
+    def is_connected(self) -> bool:
+        """Check if robot is connected"""
+        pass
+    
+    @abstractmethod
+    def go_home(self) -> bool:
+        """Move robot to home position"""
+        pass
+    
+    @abstractmethod
+    def move_joint(self, joint_name: str, angle: float, speed: int = 100) -> bool:
+        """Move a specific joint"""
+        pass
+    
+    @abstractmethod
+    def get_current_positions(self) -> Dict[str, float]:
+        """Get current joint positions"""
+        pass
 
-# Import camera and OpenCV
-try:
-    import cv2
-    import numpy as np
-    OPENCV_AVAILABLE = True
-    print("✅ OpenCV module imported successfully")
-except ImportError as e:
-    OPENCV_AVAILABLE = False
-    print(f"⚠️  OpenCV module not available: {e}")
 
+class FocusDetector(ABC):
+    """Abstract interface for focus detection"""
+    
+    @abstractmethod
+    def start_detection(self, callback: Callable[[bool, float], None]) -> bool:
+        """Start focus detection with callback"""
+        pass
+    
+    @abstractmethod
+    def stop_detection(self) -> None:
+        """Stop focus detection"""
+        pass
+    
+    @abstractmethod
+    def is_running(self) -> bool:
+        """Check if detection is running"""
+        pass
+
+
+class FaceDetector(ABC):
+    """Abstract interface for face detection"""
+    
+    @abstractmethod
+    def detect_faces(self, frame) -> list:
+        """Detect faces in frame"""
+        pass
+    
+    @abstractmethod
+    def is_available(self) -> bool:
+        """Check if face detector is available"""
+        pass
+
+
+class CameraInterface(ABC):
+    """Abstract interface for camera control"""
+    
+    @abstractmethod
+    def open(self) -> bool:
+        """Open camera"""
+        pass
+    
+    @abstractmethod
+    def close(self) -> None:
+        """Close camera"""
+        pass
+    
+    @abstractmethod
+    def read(self) -> tuple:
+        """Read frame from camera"""
+        pass
+    
+    @abstractmethod
+    def is_opened(self) -> bool:
+        """Check if camera is opened"""
+        pass
+
+
+# =============================================================================
+# CONCRETE IMPLEMENTATIONS WITH PROPER ERROR HANDLING
+# =============================================================================
+
+class SimpleRobotControllerWrapper(RobotController):
+    """Wrapper for SimpleRobotController with error handling"""
+    
+    def __init__(self):
+        self.controller = None
+        self._available = False
+        
+        try:
+            from mainfiles.simple_robot_control import SimpleRobotController
+            self.controller = SimpleRobotController()
+            self._available = True
+            print("✅ Robot control module imported successfully")
+        except ImportError as e:
+            print(f"⚠️  Robot control module not available: {e}")
+        except Exception as e:
+            print(f"❌ Robot control initialization failed: {e}")
+    
+    def connect(self) -> bool:
+        if not self._available or not self.controller:
+            return False
+        try:
+            return self.controller.connect()
+        except Exception as e:
+            print(f"❌ Robot connection failed: {e}")
+            return False
+    
+    def disconnect(self) -> None:
+        if self.controller:
+            try:
+                self.controller.disconnect()
+            except Exception as e:
+                print(f"⚠️  Robot disconnect error: {e}")
+    
+    def is_connected(self) -> bool:
+        return self.controller and self.controller.is_connected
+    
+    def go_home(self) -> bool:
+        if not self.is_connected():
+            return False
+        try:
+            return self.controller.go_home()
+        except Exception as e:
+            print(f"❌ Go home failed: {e}")
+            return False
+    
+    def move_joint(self, joint_name: str, angle: float, speed: int = 100) -> bool:
+        if not self.is_connected():
+            return False
+        try:
+            return self.controller.move_joint(joint_name, angle, speed)
+        except Exception as e:
+            print(f"❌ Joint movement failed: {e}")
+            return False
+    
+    def get_current_positions(self) -> Dict[str, float]:
+        if not self.is_connected():
+            return {}
+        try:
+            return self.controller.current_positions.copy()
+        except Exception as e:
+            print(f"❌ Get positions failed: {e}")
+            return {}
+
+
+class FocusDetectorWrapper(FocusDetector):
+    """Wrapper for focus detection with error handling"""
+    
+    def __init__(self):
+        self.detector = None
+        self._available = False
+        
+        try:
+            from mainfiles.emoRobots.focus_true_false import start_focus_detector, stop_focus_detector
+            self._start_func = start_focus_detector
+            self._stop_func = stop_focus_detector
+            self._available = True
+            print("✅ Focus detection module imported successfully")
+        except ImportError as e:
+            print(f"⚠️  Focus detection module not available: {e}")
+        except Exception as e:
+            print(f"❌ Focus detection initialization failed: {e}")
+    
+    def start_detection(self, callback: Callable[[bool, float], None]) -> bool:
+        if not self._available:
+            return False
+        try:
+            self.detector = self._start_func(callback=callback)
+            return True
+        except Exception as e:
+            print(f"❌ Focus detection start failed: {e}")
+            return False
+    
+    def stop_detection(self) -> None:
+        if self._available and self.detector:
+            try:
+                self._stop_func()
+            except Exception as e:
+                print(f"⚠️  Focus detection stop error: {e}")
+    
+    def is_running(self) -> bool:
+        return self.detector is not None
+
+
+class YOLOFaceDetectorWrapper(FaceDetector):
+    """Wrapper for YOLO face detection with error handling"""
+    
+    def __init__(self):
+        self.detector = None
+        self._available = False
+        
+        try:
+            from mainfiles.auto_face_tracking import YOLOFaceDetector
+            self.detector = YOLOFaceDetector()
+            self._available = True
+            print("✅ Face detection module imported successfully")
+        except ImportError as e:
+            print(f"⚠️  Face detection module not available: {e}")
+        except Exception as e:
+            print(f"❌ Face detection initialization failed: {e}")
+    
+    def detect_faces(self, frame) -> list:
+        if not self._available or not self.detector:
+            return []
+        try:
+            return self.detector.detect_faces(frame)
+        except Exception as e:
+            print(f"❌ Face detection failed: {e}")
+            return []
+    
+    def is_available(self) -> bool:
+        return self._available and self.detector is not None
+
+
+class OpenCVCameraWrapper(CameraInterface):
+    """Wrapper for OpenCV camera with error handling"""
+    
+    def __init__(self):
+        self.camera = None
+        self._available = False
+        
+        try:
+            import cv2
+            self.cv2 = cv2
+            self._available = True
+            print("✅ OpenCV module imported successfully")
+        except ImportError as e:
+            print(f"⚠️  OpenCV module not available: {e}")
+        except Exception as e:
+            print(f"❌ OpenCV initialization failed: {e}")
+    
+    def open(self) -> bool:
+        if not self._available:
+            return False
+        try:
+            self.camera = self.cv2.VideoCapture(0)
+            if self.camera.isOpened():
+                # Set camera properties
+                self.camera.set(self.cv2.CAP_PROP_FRAME_WIDTH, 1920)
+                self.camera.set(self.cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+                self.camera.set(self.cv2.CAP_PROP_FPS, 30)
+                return True
+            return False
+        except Exception as e:
+            print(f"❌ Camera open failed: {e}")
+            return False
+    
+    def close(self) -> None:
+        if self.camera:
+            try:
+                self.camera.release()
+            except Exception as e:
+                print(f"⚠️  Camera close error: {e}")
+    
+    def read(self) -> tuple:
+        if not self.camera:
+            return False, None
+        try:
+            return self.camera.read()
+        except Exception as e:
+            print(f"❌ Camera read failed: {e}")
+            return False, None
+    
+    def is_opened(self) -> bool:
+        return self.camera and self.camera.isOpened()
+
+
+# =============================================================================
+# MAIN FOCUS-CONTROLLED ROBOT SYSTEM
+# =============================================================================
 
 class FocusControlledRobot:
     """
     Main robot controller that integrates focus detection with face tracking
+    Uses dependency injection for loose coupling
     """
     
-    def __init__(self):
-        self.robot_controller = None
-        self.face_detector = None
-        self.target_tracker = None
-        self.camera = None
+    def __init__(self, 
+                 robot_controller: Optional[RobotController] = None,
+                 focus_detector: Optional[FocusDetector] = None,
+                 face_detector: Optional[FaceDetector] = None,
+                 camera: Optional[CameraInterface] = None):
+        """
+        Initialize with optional dependency injection
+        If not provided, will create default implementations
+        """
+        # Initialize components with dependency injection or defaults
+        self.robot_controller = robot_controller or SimpleRobotControllerWrapper()
+        self.focus_detector = focus_detector or FocusDetectorWrapper()
+        self.face_detector = face_detector or YOLOFaceDetectorWrapper()
+        self.camera = camera or OpenCVCameraWrapper()
         
         # State management
         self.is_running = False
         self.is_focused = False
         self.is_tracking = False
-        self.focus_detector = None
         
         # Threading
-        self.focus_thread = None
         self.tracking_thread = None
-        self.camera_thread = None
         
         # Locks for thread safety
         self.state_lock = threading.Lock()
@@ -92,45 +351,22 @@ class FocusControlledRobot:
         print("\n🔧 Initializing components...")
         
         # Initialize robot controller
-        if ROBOT_AVAILABLE:
-            try:
-                self.robot_controller = SimpleRobotController()
-                if self.robot_controller.connect():
-                    print("✅ Robot controller initialized and connected")
-                else:
-                    print("❌ Failed to connect to robot")
-                    self.robot_controller = None
-            except Exception as e:
-                print(f"❌ Robot controller initialization failed: {e}")
-                self.robot_controller = None
-        
-        # Initialize face detector
-        if FACE_TRACKING_AVAILABLE:
-            try:
-                self.face_detector = YOLOFaceDetector()
-                self.target_tracker = TargetTracker()
-                print("✅ Face detector and target tracker initialized")
-            except Exception as e:
-                print(f"❌ Face detector initialization failed: {e}")
-                self.face_detector = None
-                self.target_tracker = None
+        if self.robot_controller.connect():
+            print("✅ Robot controller initialized and connected")
+        else:
+            print("❌ Failed to connect to robot")
         
         # Initialize camera
-        if OPENCV_AVAILABLE:
-            try:
-                self.camera = cv2.VideoCapture(0)
-                if self.camera.isOpened():
-                    # Set camera properties
-                    self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-                    self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-                    self.camera.set(cv2.CAP_PROP_FPS, 30)
-                    print("✅ Camera initialized")
-                else:
-                    print("❌ Failed to open camera")
-                    self.camera = None
-            except Exception as e:
-                print(f"❌ Camera initialization failed: {e}")
-                self.camera = None
+        if self.camera.open():
+            print("✅ Camera initialized")
+        else:
+            print("❌ Failed to open camera")
+        
+        # Face detector is initialized in constructor
+        if self.face_detector.is_available():
+            print("✅ Face detector initialized")
+        else:
+            print("⚠️  Face detector not available")
     
     def _focus_callback(self, is_focused: bool, score: float):
         """
@@ -154,7 +390,7 @@ class FocusControlledRobot:
     def _start_face_tracking(self):
         """Start face tracking when focus is detected"""
         with self.state_lock:
-            if not self.is_tracking and self.face_detector and self.camera:
+            if not self.is_tracking and self.face_detector.is_available() and self.camera.is_opened():
                 self.is_tracking = True
                 self.tracking_thread = threading.Thread(target=self._face_tracking_loop, daemon=True)
                 self.tracking_thread.start()
@@ -168,7 +404,7 @@ class FocusControlledRobot:
     
     def _return_to_home(self):
         """Return robot to home position"""
-        if self.robot_controller and self.robot_controller.is_connected:
+        if self.robot_controller.is_connected():
             with self.robot_lock:
                 try:
                     print("🏠 Returning to home position...")
@@ -200,11 +436,8 @@ class FocusControlledRobot:
                     face_center = (largest_face[0] + largest_face[2] // 2, 
                                  largest_face[1] + largest_face[3] // 2)
                     
-                    # Update target tracker
-                    self.target_tracker.update_target(face_center)
-                    
                     # Execute robot movement if needed
-                    if self.robot_controller and self.robot_controller.is_connected:
+                    if self.robot_controller.is_connected():
                         self._execute_robot_movement(frame, largest_face, face_center)
                 
                 # Add small delay to prevent excessive CPU usage
@@ -240,16 +473,17 @@ class FocusControlledRobot:
                     pan_angle = max(-max_angle, min(max_angle, pan_angle))
                     tilt_angle = max(-max_angle, min(max_angle, tilt_angle))
                     
-                    # Move robot joints
-                    if abs(pan_angle) > 1.0:
-                        self.robot_controller.move_joint("joint1", 
-                                                       self.robot_controller.current_positions["joint1"] + pan_angle,
-                                                       speed=50)
+                    # Get current positions
+                    current_positions = self.robot_controller.get_current_positions()
                     
-                    if abs(tilt_angle) > 1.0:
-                        self.robot_controller.move_joint("joint5", 
-                                                       self.robot_controller.current_positions["joint5"] + tilt_angle,
-                                                       speed=50)
+                    # Move robot joints
+                    if abs(pan_angle) > 1.0 and "joint1" in current_positions:
+                        new_angle = current_positions["joint1"] + pan_angle
+                        self.robot_controller.move_joint("joint1", new_angle, speed=50)
+                    
+                    if abs(tilt_angle) > 1.0 and "joint5" in current_positions:
+                        new_angle = current_positions["joint5"] + tilt_angle
+                        self.robot_controller.move_joint("joint5", new_angle, speed=50)
                     
                     print(f"🤖 Robot movement: Pan={pan_angle:.1f}°, Tilt={tilt_angle:.1f}°")
         
@@ -258,11 +492,7 @@ class FocusControlledRobot:
     
     def start(self):
         """Start the focus-controlled robot system"""
-        if not FOCUS_AVAILABLE:
-            print("❌ Focus detection not available. Cannot start system.")
-            return False
-        
-        if not self.robot_controller:
+        if not self.robot_controller.is_connected():
             print("❌ Robot controller not available. Cannot start system.")
             return False
         
@@ -272,13 +502,11 @@ class FocusControlledRobot:
         self._return_to_home()
         
         # Start focus detection
-        try:
-            self.focus_detector = start_focus_detector(callback=self._focus_callback)
-            print("✅ Focus detection started")
-        except Exception as e:
-            print(f"❌ Failed to start focus detection: {e}")
+        if not self.focus_detector.start_detection(self._focus_callback):
+            print("❌ Failed to start focus detection")
             return False
         
+        print("✅ Focus detection started")
         self.is_running = True
         print("✅ System started successfully!")
         print("\n📋 System Status:")
@@ -302,20 +530,19 @@ class FocusControlledRobot:
         self._stop_face_tracking()
         
         # Stop focus detection
-        if self.focus_detector:
-            try:
-                stop_focus_detector()
-                print("✅ Focus detection stopped")
-            except Exception as e:
-                print(f"⚠️  Error stopping focus detection: {e}")
+        self.focus_detector.stop_detection()
+        print("✅ Focus detection stopped")
         
         # Return robot to home
         self._return_to_home()
         
         # Release camera
-        if self.camera:
-            self.camera.release()
-            print("✅ Camera released")
+        self.camera.close()
+        print("✅ Camera released")
+        
+        # Disconnect robot
+        self.robot_controller.disconnect()
+        print("✅ Robot disconnected")
         
         print("✅ System stopped successfully")
     
@@ -341,25 +568,6 @@ def main():
     """Main function"""
     print("🤖 Focus-Controlled Robot Arm System")
     print("=" * 50)
-    
-    # Check system requirements
-    if not FOCUS_AVAILABLE:
-        print("❌ Focus detection is required but not available")
-        print("   Please ensure focus_true_false.py is properly configured")
-        return 1
-    
-    if not ROBOT_AVAILABLE:
-        print("❌ Robot control is required but not available")
-        print("   Please ensure robot control modules are properly configured")
-        return 1
-    
-    if not FACE_TRACKING_AVAILABLE:
-        print("⚠️  Face tracking is not available")
-        print("   The system will still respond to focus but won't track faces")
-    
-    if not OPENCV_AVAILABLE:
-        print("⚠️  OpenCV is not available")
-        print("   Face tracking will not work")
     
     # Create and run the focus-controlled robot
     robot_system = FocusControlledRobot()

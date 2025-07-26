@@ -35,7 +35,7 @@ from enum import Enum
 # Import existing components
 try:
     from simple_robot_control import SimpleRobotController
-    from config import MOTOR_CONFIG, ROBOT_CONFIG
+    from mainfiles.config import MOTOR_CONFIG, ROBOT_CONFIG
     from pid_controller import DualAxisPIDController, PIDConfig
 except ImportError as e:
     print(f"❌ Import error: {e}")

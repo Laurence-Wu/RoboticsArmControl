@@ -15,9 +15,9 @@ import numpy as np
 
 # Import robot configuration
 try:
-    from config import SERIAL_CONFIG, MOTOR_CONFIG, ROBOT_CONFIG
+    from mainfiles.config import SERIAL_CONFIG, MOTOR_CONFIG, ROBOT_CONFIG
 except ImportError:
-    print("❌ Could not import config.py. Make sure it's in the same directory.")
+    print("❌ Could not import mainfiles.config. Make sure it's in the same directory.")
     sys.exit(1)
 
 # Try to import required modules

@@ -6,7 +6,7 @@ This file contains all configuration settings for the robot control scripts.
 All external scripts should import settings from this file to ensure consistency.
 
 Usage:
-    from config import ROBOT_CONFIG, SERIAL_CONFIG, MOTOR_CONFIG
+    from mainfiles.config import ROBOT_CONFIG, SERIAL_CONFIG, MOTOR_CONFIG
 """
 
 import os
