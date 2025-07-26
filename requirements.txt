@@ -1,0 +1,61 @@
+# Requirements for Advanced X Robot Control System
+# This file contains all dependencies needed for the face tracking robot control system
+
+# Core computer vision and image processing
+opencv-python>=4.8.0          # OpenCV for camera operations and image processing
+opencv-python-headless>=4.8.0  # Headless version for servers without display
+
+# Machine learning and AI
+ultralytics>=8.0.0            # YOLO object detection for face tracking
+numpy>=1.21.0,<2.0.0          # Numerical computing (constrained for compatibility)
+
+# Robot control and hardware communication
+fashionstar-uart-sdk>=1.0.0   # Fashion Star servo SDK for robot arm control
+pyserial>=3.5                 # Serial communication for robot hardware
+
+# Data processing and analysis
+matplotlib>=3.5.0             # Plotting and visualization (for PID demo)
+pandas>=1.3.0                 # Data manipulation and analysis
+
+# Configuration and file handling
+pyyaml>=6.0                   # YAML configuration file support
+pathlib2>=2.3.0; python_version < "3.4"  # Path handling for older Python versions
+
+# Optional dependencies for enhanced features
+# Uncomment these if you want additional functionality:
+
+# For advanced robot control (LeRobot integration)
+# lerobot>=0.1.0
+
+# For real-time plotting and monitoring
+# plotly>=5.0.0
+
+# For advanced PID tuning
+# scipy>=1.7.0
+
+# For machine learning model training
+# torch>=1.9.0
+# torchvision>=0.10.0
+
+# For web interface (if needed)
+# flask>=2.0.0
+
+# For database storage (if needed)
+# sqlite3  # Usually included with Python
+
+# Development and testing dependencies
+# pytest>=6.0.0
+# pytest-cov>=2.0.0
+# black>=21.0.0
+# flake8>=3.8.0
+
+# Note: Some dependencies may have system-specific requirements:
+# - OpenCV may require additional system libraries on Linux
+# - Fashion Star SDK may require specific USB drivers
+# - YOLO models will be downloaded automatically on first use
+
+# Installation instructions:
+# 1. Create a virtual environment: python -m venv venv
+# 2. Activate the environment: source venv/bin/activate (Linux/Mac) or venv\Scripts\activate (Windows)
+# 3. Install dependencies: pip install -r requirements.txt
+# 4. For GPU acceleration (optional): pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118 

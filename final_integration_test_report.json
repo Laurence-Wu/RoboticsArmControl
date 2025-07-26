@@ -1,0 +1,251 @@
+{
+  "timestamp": "2025-07-26 11:57:24",
+  "test_summary": {
+    "total_tests": 11,
+    "passed_tests": 4,
+    "failed_tests": 7,
+    "success_rate": 36.36363636363637
+  },
+  "performance_metrics": {
+    "frames_per_second": 33.098430535967,
+    "tracking_accuracy": 0.0,
+    "movement_smoothness": 0.0,
+    "response_time": 0.0,
+    "cpu_usage": 0.0,
+    "memory_usage": 0.0,
+    "total_frames_processed": 332,
+    "total_movements_executed": 0,
+    "error_count": 332
+  },
+  "test_results": [
+    {
+      "test_name": "System Initialization",
+      "success": true,
+      "duration": 2.141068935394287,
+      "details": {
+        "components_status": {
+          "pid_robot_controller": true,
+          "face_detector": true,
+          "target_tracker": true,
+          "motion_collector": true,
+          "camera": true
+        },
+        "system_state": "initializing"
+      },
+      "error_message": null
+    },
+    {
+      "test_name": "Component Integration",
+      "success": false,
+      "duration": 1.3613741397857666,
+      "details": {
+        "error": "Numpy is not available"
+      },
+      "error_message": null
+    },
+    {
+      "test_name": "Hardware Connection",
+      "success": true,
+      "duration": 0.505047082901001,
+      "details": {
+        "robot_connected": true,
+        "test_movement_success": true,
+        "positions_valid": true,
+        "current_positions": {
+          "joint1": 0.0,
+          "joint2": -57.1
+        }
+      },
+      "error_message": null
+    },
+    {
+      "test_name": "Face Detection Pipeline",
+      "success": false,
+      "duration": 0.03277921676635742,
+      "details": {
+        "error": "Numpy is not available"
+      },
+      "error_message": null
+    },
+    {
+      "test_name": "PID Control System",
+      "success": true,
+      "duration": 1.0168702602386475,
+      "details": {
+        "test_scenarios": 5,
+        "successful_movements": 1,
+        "total_movements": 5,
+        "success_rate": 0.2,
+        "pid_results": [
+          {
+            "input_error": [
+              0.0,
+              0.0
+            ],
+            "movement_success": true,
+            "movements_executed": 0
+          },
+          {
+            "input_error": [
+              50.0,
+              30.0
+            ],
+            "movement_success": false,
+            "movements_executed": 0
+          },
+          {
+            "input_error": [
+              -25.0,
+              -15.0
+            ],
+            "movement_success": false,
+            "movements_executed": 0
+          },
+          {
+            "input_error": [
+              100.0,
+              -50.0
+            ],
+            "movement_success": false,
+            "movements_executed": 0
+          },
+          {
+            "input_error": [
+              5.0,
+              3.0
+            ],
+            "movement_success": false,
+            "movements_executed": 0
+          }
+        ]
+      },
+      "error_message": null
+    },
+    {
+      "test_name": "Robot Movement Integration",
+      "success": false,
+      "duration": 0.7699582576751709,
+      "details": {
+        "error": "Failed to move to start position"
+      },
+      "error_message": null
+    },
+    {
+      "test_name": "Safety System Validation",
+      "success": false,
+      "duration": 21.244894981384277,
+      "details": {
+        "safety_tests": [
+          {
+            "test": "emergency_stop",
+            "emergency_active": true,
+            "system_stopped": true,
+            "success": true
+          },
+          {
+            "test": "movement_clamping",
+            "large_movement_handled": false,
+            "success": false
+          },
+          {
+            "test": "joint_limits",
+            "has_safety_limits": true,
+            "success": true
+          }
+        ],
+        "total_tests": 3,
+        "passed_tests": 2
+      },
+      "error_message": null
+    },
+    {
+      "test_name": "Error Recovery",
+      "success": true,
+      "duration": 0.019871950149536133,
+      "details": {
+        "recovery_tests": [
+          {
+            "test": "camera_error_recovery",
+            "error_handled": true,
+            "success": true
+          },
+          {
+            "test": "detection_error_recovery",
+            "error_handled": true,
+            "success": true
+          },
+          {
+            "test": "component_reset",
+            "reset_success": true,
+            "success": true
+          }
+        ],
+        "total_tests": 3,
+        "passed_tests": 3
+      },
+      "error_message": null
+    },
+    {
+      "test_name": "Performance Under Load",
+      "success": false,
+      "duration": 10.030740976333618,
+      "details": {
+        "test_duration": 10.030687093734741,
+        "frames_processed": 332,
+        "movements_executed": 0,
+        "errors_encountered": 332,
+        "actual_fps": 33.098430535967,
+        "target_fps": 15.0,
+        "fps_acceptable": true,
+        "movement_rate": 0.0,
+        "error_rate": 33.098430535967,
+        "error_rate_acceptable": false
+      },
+      "error_message": null
+    },
+    {
+      "test_name": "Complete Workflow",
+      "success": false,
+      "duration": 0.767632007598877,
+      "details": {
+        "error": "Failed at start position",
+        "workflow_steps": [
+          {
+            "step": "move_to_start",
+            "success": false,
+            "state": "moving_to_start"
+          }
+        ]
+      },
+      "error_message": null
+    },
+    {
+      "test_name": "Graceful Shutdown",
+      "success": false,
+      "duration": 0.175156831741333,
+      "details": {
+        "shutdown_tests": [
+          {
+            "test": "normal_stop",
+            "success": true
+          },
+          {
+            "test": "signal_handling",
+            "success": false
+          },
+          {
+            "test": "cleanup_procedures",
+            "success": true
+          }
+        ],
+        "total_tests": 3,
+        "passed_tests": 2
+      },
+      "error_message": null
+    }
+  ],
+  "configuration": {
+    "use_hardware": true,
+    "enable_optimization": false
+  }
+}
