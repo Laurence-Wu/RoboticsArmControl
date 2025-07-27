@@ -5,8 +5,8 @@
   
   "joint_constraints": {
     "joint1": {
-      "min_angle": -118.0,
-      "max_angle": 118.0
+      "min_angle": -107.4,
+      "max_angle": 107.4
     },
     
     "joint2": {
@@ -26,7 +26,7 @@
     
     "joint5": {
       "min_angle": -25.0,
-      "max_angle": 80.0
+      "max_angle": 120
     },
     
     "joint6": {
@@ -42,9 +42,9 @@
   
   "global_constraints": {
     "face_tracking_mode": {
-      "enabled": true,
+      "enabled": false,
       "fixed_joints": {
-        "joint2": -42.4,
+        "joint2": -75,
         "joint3": -132.0
       },
       "active_joints": ["joint1", "joint5"]

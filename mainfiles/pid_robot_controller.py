@@ -35,11 +35,11 @@ from enum import Enum
 # Import existing components
 try:
     from simple_robot_control import SimpleRobotController
-    from mainfiles.config import MOTOR_CONFIG, ROBOT_CONFIG
-    from pid_controller import DualAxisPIDController, PIDConfig
+    from config import MOTOR_CONFIG, ROBOT_CONFIG, PID_CONFIG
+    from enhanced_pid_controller import EnhancedPIDController, EnhancedPIDConfig, create_enhanced_config
 except ImportError as e:
     print(f"❌ Import error: {e}")
-    print("Make sure simple_robot_control.py, config.py, and pid_controller.py are available")
+    print("Make sure simple_robot_control.py, config.py, and enhanced_pid_controller.py are available")
     raise
 
 # Configure logging
@@ -97,7 +97,7 @@ class PIDRobotController:
     with comprehensive safety checks and error handling.
     """
     
-    def __init__(self, config: Optional[PIDConfig] = None, 
+    def __init__(self, config: Optional[EnhancedPIDConfig] = None, 
                  safety_limits: Optional[SafetyLimits] = None,
                  simulation_mode: bool = False):
         """
@@ -109,7 +109,7 @@ class PIDRobotController:
             simulation_mode: If True, operates in simulation mode without hardware
         """
         # Configuration
-        self.config = config or PIDConfig()
+        self.config = config or EnhancedPIDConfig()
         self.safety_limits = safety_limits or SafetyLimits()
         self.simulation_mode = simulation_mode
         
@@ -119,11 +119,11 @@ class PIDRobotController:
             self.robot = SimpleRobotController()
         
         # PID controllers
-        self.dual_pid = DualAxisPIDController(self.config)
+        self.dual_pid = EnhancedPIDController(self.config)
         
         # State management
         self.state = ControllerState.DISCONNECTED
-        self.current_positions = {"joint1": 0.0, "joint4": 0.0}
+        self.current_positions = {"joint1": -2.9, "joint4": 0.0}
         self.last_movement_time = time.time()
         self.total_movements = 0
         self.emergency_stop_active = False
@@ -196,7 +196,7 @@ class PIDRobotController:
         try:
             self.robot.read_positions()
             # Update our tracking of pan/tilt positions
-            self.current_positions["joint1"] = self.robot.current_positions.get("joint1", 0.0)
+            self.current_positions["joint1"] = self.robot.current_positions.get("joint1", -2.9)
             self.current_positions["joint4"] = self.robot.current_positions.get("joint4", 0.0)
         except Exception as e:
             logger.warning(f"Failed to update current positions: {e}")
@@ -272,7 +272,7 @@ class PIDRobotController:
             tilt_movement = 0.0
         
         # Check joint limits
-        current_pan = self.current_positions.get("joint1", 0.0)
+        current_pan = self.current_positions.get("joint1", -2.9)
         current_tilt = self.current_positions.get("joint4", 0.0)
         
         new_pan = current_pan + pan_movement
@@ -345,7 +345,7 @@ class PIDRobotController:
                     return False
                 
                 # Calculate target positions
-                current_pan = self.current_positions.get("joint1", 0.0)
+                current_pan = self.current_positions.get("joint1", -2.9)
                 current_tilt = self.current_positions.get("joint4", 0.0)
                 
                 target_pan = current_pan + movement_cmd.pan_angle
@@ -463,7 +463,7 @@ class PIDRobotController:
         self.dual_pid.reset()
         logger.info("PID controllers reset")
     
-    def update_pid_config(self, new_config: PIDConfig) -> None:
+    def update_pid_config(self, new_config: EnhancedPIDConfig) -> None:
         """
         Update PID configuration.
         
@@ -521,8 +521,8 @@ class MockRobotController:
     
     def __init__(self):
         """Initialize mock controller."""
-        self.positions = {"joint1": 0.0, "joint4": 0.0, "joint3": -90.0, 
-                         "joint4": 0.0, "joint5": 0.0, "joint6": 0.0, "gripper": 0.0}
+        self.positions = {"joint1": -2.9, "joint4": 0.0, "joint3": -90.0, 
+                         "joint4": 0.0, "joint5": 63.5, "joint6": 0.0, "gripper": 0.0}
         self.connected = False
         self.current_positions = self.positions.copy()
         

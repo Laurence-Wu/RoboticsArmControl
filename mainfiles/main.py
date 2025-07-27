@@ -28,18 +28,22 @@ except ImportError:
 
 # Import robot configuration
 try:
-    from mainfiles.config import SERIAL_CONFIG, MOTOR_CONFIG
-    from mainfiles.simple_robot_control import SimpleRobotController
+    from config import SERIAL_CONFIG, MOTOR_CONFIG
+    from simple_robot_control import SimpleRobotController
     ROBOT_AVAILABLE = True
 except ImportError:
     ROBOT_AVAILABLE = False
 
 # Import optimized PID control components
 try:
-    from pid_controller_optimized import OptimizedPIDController, PIDConfig, FastPIDController
+    # Use enhanced PID controller instead of deleted basic ones
+    from enhanced_pid_controller import EnhancedPIDController, create_enhanced_config, ConvergenceMode
+    from config import PID_CONFIG  # Use the PID config from main config.py
     PID_AVAILABLE = True
-except ImportError:
+    print("✅ Enhanced PID controller available")
+except ImportError as e:
     PID_AVAILABLE = False
+    print(f"⚠️  PID controller not available: {e}")
 
 # Import YOLO
 try:
@@ -71,7 +75,7 @@ def is_robot_movement_locked() -> bool:
     global ROBOT_MOVEMENT_LOCK
     return ROBOT_MOVEMENT_LOCK
 
-def check_and_adjust_arm_joints(robot_controller, joint2_target=-42.4, joint3_target=-132.0, tolerance=2.0, speed=100):
+def check_and_adjust_arm_joints(robot_controller, joint2_target=-75., joint3_target=-132.0, tolerance=2.0, speed=100):
     """Ultra-optimized arm joint adjustment with minimal overhead."""
     if not robot_controller or not robot_controller.is_connected:
         return False
@@ -103,7 +107,7 @@ def check_and_adjust_arm_joints(robot_controller, joint2_target=-42.4, joint3_ta
     
     return success
 
-def ensure_arm_configuration(robot_controller, joint2_target=-42.4, joint3_target=-132.0, tolerance=2.0, speed=100):
+def ensure_arm_configuration(robot_controller, joint2_target=-88.9, joint3_target=-132.0, tolerance=2.0, speed=100):
     """Ensure arm configuration with minimal overhead."""
     return check_and_adjust_arm_joints(robot_controller, joint2_target, joint3_target, tolerance, speed)
 
@@ -206,32 +210,26 @@ class UltraOptimizedMotionDataCollector:
         self.last_processing_time = time.time()
         
         # Initialize PID configuration
-        self.pid_config = pid_config or PIDConfig()
+        if PID_AVAILABLE:
+            self.pid_config = pid_config or create_enhanced_config()
+        else:
+            self.pid_config = None
         self.use_fast_controller = use_fast_controller
         
         # Initialize controller based on performance preference
         if PID_AVAILABLE:
             if use_fast_controller:
-                # Use ultra-fast controller for maximum performance
-                self.controller = FastPIDController(
-                    Kp=self.pid_config.PAN_KP,
-                    Kd=self.pid_config.PAN_KD,
-                    dead_zone=self.pid_config.DEAD_ZONE * self.pid_config.PIXELS_TO_DEGREES,
-                    max_output=self.pid_config.MAX_MOVEMENT
-                )
-                self.tilt_controller = FastPIDController(
-                    Kp=self.pid_config.TILT_KP,
-                    Kd=self.pid_config.TILT_KD,
-                    dead_zone=self.pid_config.DEAD_ZONE * self.pid_config.PIXELS_TO_DEGREES,
-                    max_output=self.pid_config.MAX_MOVEMENT
-                )
+                # Use enhanced controller with optimized config
+                fast_config = create_enhanced_config(ConvergenceMode.FAST)
+                self.controller = EnhancedPIDController(fast_config)
+                self.tilt_controller = None  # Enhanced controller handles both axes
                 self.pid_available = True
-                print("✅ Ultra-fast PID controllers initialized")
+                print("✅ Enhanced PID controller initialized (fast mode)")
             else:
-                # Use optimized dual-axis controller
-                self.controller = OptimizedPIDController(self.pid_config)
+                # Use enhanced controller with adaptive config
+                self.controller = EnhancedPIDController(self.pid_config)
                 self.pid_available = True
-                print("✅ Optimized dual-axis PID controller initialized")
+                print("✅ Enhanced PID controller initialized (adaptive mode)")
         else:
             self.controller = None
             self.pid_available = False
@@ -250,7 +248,7 @@ class UltraOptimizedMotionDataCollector:
                 print("⚠️  Robot connection failed")
         
         # Track current positions
-        self.current_positions = {"joint1": 0.0, "joint5": 0.0}
+        self.current_positions = {"joint1": 0.0, "joint5": 63.5}
         
         # Performance optimization: pre-compute constants
         self._dead_zone_degrees = self.pid_config.DEAD_ZONE * self.pid_config.PIXELS_TO_DEGREES
@@ -282,9 +280,8 @@ class UltraOptimizedMotionDataCollector:
     def _process_with_pid(self, error_x: float, error_y: float, latest: MotionData) -> ProcessedMotion:
         """Ultra-optimized PID processing"""
         if self.use_fast_controller:
-            # Use separate fast controllers for each axis
-            pan_output = self.controller.update(error_x)
-            tilt_output = self.tilt_controller.update(error_y)
+            # Use unified enhanced controller for both axes (both controllers expect error_x, error_y)
+            pan_output, tilt_output = self.controller.update(error_x, error_y)
         else:
             # Use unified optimized controller
             pan_output, tilt_output = self.controller.update(error_x, error_y)
@@ -349,7 +346,7 @@ class UltraOptimizedMotionDataCollector:
         
         # Apply joint limits
         if ROBOT_AVAILABLE:
-            from mainfiles.config import MOTOR_CONFIG
+            from config import MOTOR_CONFIG
             pan_min, pan_max = MOTOR_CONFIG.JOINT_LIMITS["joint1"]
             tilt_min, tilt_max = MOTOR_CONFIG.JOINT_LIMITS["joint5"]
             
@@ -400,7 +397,7 @@ class UltraOptimizedSingleThreadFaceTracker:
         
         # Initialize PID configuration
         if PID_AVAILABLE and pid_config is None:
-            self.pid_config = PIDConfig()
+            self.pid_config = create_enhanced_config()
         elif PID_AVAILABLE:
             self.pid_config = pid_config
         else:
@@ -470,7 +467,7 @@ class UltraOptimizedSingleThreadFaceTracker:
         # Current joint positions
         self.current_positions = {
             "joint1": 0,
-            "joint5": 0,
+            "joint5": 63.5,
         }
         
         # Performance optimization: pre-allocated variables
@@ -765,10 +762,17 @@ def main():
     use_fast_controller = True  # Use fast controller for maximum performance
     enable_multi_face = True
     
-    # Load PID configuration if available
+    # Load enhanced PID configuration if available
     pid_config = None
     if PID_AVAILABLE:
-        print("📊 Using ultra-optimized PID/PD configuration")
+        print("📊 Using enhanced fast-convergence PID configuration")
+        try:
+            pid_config = create_enhanced_config()
+            print("✅ Enhanced PID configuration loaded successfully")
+        except Exception as e:
+            print(f"⚠️  Enhanced config failed, using optimized: {e}")
+            pid_config = create_enhanced_config() # Fallback to optimized if enhanced fails
+        pid_config.print_summary()
     
     print(f"📊 Ultra-Optimized Configuration:")
     print(f"  - Processing: Instantaneous (real-time)")
@@ -792,7 +796,7 @@ def main():
         temp_robot = SimpleRobotController()
         if temp_robot.connect():
             print("🔧 Checking and adjusting arm configuration...")
-            arm_config_ok = ensure_arm_configuration(temp_robot, joint2_target=-42.4, joint3_target=-132.0, tolerance=2.0, speed=100)
+            arm_config_ok = ensure_arm_configuration(temp_robot, joint2_target=-75, joint3_target=-132.0, tolerance=2.0, speed=100)
             if arm_config_ok:
                 print("✅ Arm configuration properly set for face tracking")
             else:

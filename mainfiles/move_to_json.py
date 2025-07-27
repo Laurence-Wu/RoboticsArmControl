@@ -7,11 +7,11 @@ to those positions. The JSON should contain joint names and angles.
 
 Example JSON format:
 {
-    "joint1": 0.0,
+    "joint1": -2.9,
     "joint2": 0.0,
     "joint3": -90.0,
     "joint4": -45.0,
-    "joint5": 0.0,
+    "joint5": 63.5,
     "joint6": 0.0,
     "gripper": 0.0
 }
@@ -24,7 +24,7 @@ import argparse
 
 # Import robot configuration
 try:
-    from mainfiles.config import HOME_POSITION
+    from config import MOTOR_CONFIG
     from simple_robot_control import SimpleRobotController
     print("✅ Configuration loaded successfully")
 except ImportError as e:
@@ -188,7 +188,8 @@ def move_to_home_position(speed=50, velocity=None, verbose=True):
         
         if verbose:
             print("✅ Robot connected successfully!")
-            print(f"🏠 Home position: {HOME_POSITION}")
+            home_position = MOTOR_CONFIG.get_home_position()
+            print(f"🏠 Home position: {home_position}")
         
         # Show current positions
         if verbose:
@@ -198,7 +199,7 @@ def move_to_home_position(speed=50, velocity=None, verbose=True):
         # Move to home position
         if verbose:
             print(f"\n🤖 Moving to home position (speed: {speed}, velocity: {velocity})...")
-        success = controller.move_multiple_joints(HOME_POSITION, speed=speed, velocity=velocity)
+        success = controller.move_multiple_joints(home_position, speed=speed, velocity=velocity)
         
         if success:
             if verbose:
@@ -244,7 +245,8 @@ def main():
     
     # Show home position if requested
     if args.show_home:
-        print(f"\n🏠 Home position from config: {HOME_POSITION}")
+        home_position = MOTOR_CONFIG.get_home_position()
+        print(f"\n🏠 Home position from config: {home_position}")
         return
     
     # Determine target positions

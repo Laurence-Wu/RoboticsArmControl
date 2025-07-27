@@ -6,7 +6,7 @@ This file contains all configuration settings for the robot control scripts.
 All external scripts should import settings from this file to ensure consistency.
 
 Usage:
-    from mainfiles.config import ROBOT_CONFIG, SERIAL_CONFIG, MOTOR_CONFIG
+    from config import ROBOT_CONFIG, SERIAL_CONFIG, MOTOR_CONFIG
 """
 
 import os
@@ -20,7 +20,9 @@ class SerialConfig:
     """Serial communication settings."""
     
     # Default USB ports (update these with your actual ports)
-    DEFAULT_PORT = "/dev/tty.usbserial-144140"
+    DEFAULT_PORT = "/dev/tty.usbserial-143110"
+    LEADER_PORT = "/dev/tty.usbserial-143110"   # Added missing LEADER_PORT
+    FOLLOWER_PORT = "/dev/tty.usbserial-14410" # Added missing FOLLOWER_PORT
     
     # Communication settings
     BAUDRATE = 1000000  # 1 MHz - standard for Fashion Star servos
@@ -115,9 +117,42 @@ class MotorConfig:
     POSITION_TOLERANCE = 2.0   # Position tolerance in degrees
     
     # Start position (safe starting position)
-    START_POSITION = {'joint1': -0.2, 'joint2': -56.9, 'joint3': -132.4, 'joint4': 0.2, 'joint5': 32.8, 'joint6': -88.6, 'gripper': 0.0}
-    #Home position
-    HOME_POSITION = {'joint1': 0.1, 'joint2': -87.9, 'joint3': -43.1, 'joint4': -0.5, 'joint5': -20.9, 'joint6': -88.9, 'gripper': 0.0}
+    START_POSITION = {'joint1': 0, 'joint2': -75, 'joint3': -132.4, 'joint4': 0.2, 'joint5': 63.5, 'joint6': -88.6, 'gripper': 0.0}
+    
+    # Default home position (fallback)
+    _DEFAULT_HOME_POSITION = {'joint1': 0, 'joint2': -75, 'joint3': -152.7, 'joint4': -0.7, 'joint5': 63.5, 'joint6': -88.5, 'gripper': 0.0}
+    
+    @classmethod
+    def load_home_position(cls):
+        """Load home position from positions/HOME.json file."""
+        try:
+            import json
+            import os
+            from pathlib import Path
+            
+            # Get the directory of this config file
+            config_dir = Path(__file__).parent
+            home_file = config_dir / "positions" / "HOME.json"
+            
+            if home_file.exists():
+                with open(home_file, 'r') as f:
+                    home_data = json.load(f)
+                print(f"✅ Loaded home position from {home_file}")
+                return home_data
+            else:
+                print(f"⚠️  Home position file not found: {home_file}")
+                print("   Using default home position")
+                return cls._DEFAULT_HOME_POSITION
+                
+        except Exception as e:
+            print(f"❌ Error loading home position: {e}")
+            print("   Using default home position")
+            return cls._DEFAULT_HOME_POSITION
+    
+    @classmethod
+    def get_home_position(cls):
+        """Get the current home position."""
+        return cls.load_home_position()
     
     # Gripper positions
     GRIPPER_OPEN = 45    # Degrees for open gripper
@@ -225,19 +260,19 @@ class PathConfig:
 class PIDControlConfig:
     """PID control configuration for face tracking system."""
     
-    # PID Gains for Pan (X-axis / Joint1) - Optimized for PD control
-    PAN_KP = 0.04  # Increased from 0.1 based on TianxingWu approach
-    PAN_KI = 0.01   # Set to 0 for PD control (TianxingWu found PD works better)
-    PAN_KD = 0.10  # Increased from 0.05 for better damping
+    # PID Gains for Pan (X-axis / Joint1) - Optimized for smooth tracking
+    PAN_KP = 0.009  # Reduced from 0.04 for smoother movement
+    PAN_KI = 0.0    # Set to 0 for PD control (prevents overshoot)
+    PAN_KD = 0.05   # Reduced from 0.10 for less oscillation
     
     # PID Gains for Tilt (Y-axis / Joint4)
-    TILT_KP = 0.05  # Increased from 0.1
-    TILT_KI = 0.01   # Set to 0 for PD control
-    TILT_KD = 0.10  # Increased from 0.05
+    TILT_KP = 0.009  # Reduced from 0.05 for smoother movement
+    TILT_KI = 0.0   # Set to 0 for PD control
+    TILT_KD = 0.05  # Reduced from 0.10 for less oscillation
     
-    # Control Parameters - Optimized based on TianxingWu approach
-    DEAD_ZONE = 10.0  # Reduced from 15.0 - smaller dead zone for more precision
-    MAX_MOVEMENT = 12.0  # Increased from 8.0 - allow larger movements for faster tracking
+    # Control Parameters - Optimized for smooth tracking
+    DEAD_ZONE = 5.0   # Reduced to allow response to moderate errors
+    MAX_MOVEMENT = 8.0  # Increased slightly for better tracking range
     
     # Anti-windup Protection (less critical with PD control)
     INTEGRAL_MIN = -100.0  # Reduced range since Ki=0
@@ -258,8 +293,8 @@ class PIDControlConfig:
     FACE_ASPECT_RATIO_MIN = 0.6  # Minimum width/height ratio for face
     FACE_ASPECT_RATIO_MAX = 1.8  # Maximum width/height ratio for face
     
-    # Conversion Parameters - Tuned for better responsiveness
-    PIXELS_TO_DEGREES = 0.15  # Increased from 0.1 for more responsive tracking
+    # Conversion Parameters - Tuned for smoother responsiveness
+    PIXELS_TO_DEGREES = 0.08  # Reduced from 0.15 for smoother movement
     
     @classmethod
     def get_config_dict(cls):
@@ -312,7 +347,7 @@ DEFAULT_PORT = SERIAL_CONFIG.DEFAULT_PORT
 BAUDRATE = SERIAL_CONFIG.BAUDRATE
 MOTOR_IDS = MOTOR_CONFIG.MOTOR_IDS
 JOINT_LIMITS = MOTOR_CONFIG.JOINT_LIMITS
-HOME_POSITION = MOTOR_CONFIG.HOME_POSITION
+HOME_POSITION = MOTOR_CONFIG.get_home_position()
 
 
 # =============================================================================
@@ -396,7 +431,7 @@ def validate_config():
     if len(MOTOR_CONFIG.MOTOR_IDS) != len(MOTOR_CONFIG.JOINT_LIMITS):
         issues.append("Motor IDs and joint limits count mismatch")
     
-    if len(MOTOR_CONFIG.MOTOR_IDS) != len(MOTOR_CONFIG.HOME_POSITION):
+    if len(MOTOR_CONFIG.MOTOR_IDS) != len(MOTOR_CONFIG.get_home_position()):
         issues.append("Motor IDs and home position count mismatch")
     
     if len(MOTOR_CONFIG.MOTOR_IDS) != len(MOTOR_CONFIG.START_POSITION):

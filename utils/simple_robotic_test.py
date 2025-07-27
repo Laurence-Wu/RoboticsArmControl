@@ -13,12 +13,21 @@ import time
 import sys
 import numpy as np
 
+# Constants
+NOT_CONNECTED_ERROR = "❌ Robot not connected"
+
 # Import robot configuration
 try:
-    from utils.config import SERIAL_CONFIG, MOTOR_CONFIG, ROBOT_CONFIG
+    # Try local import first (when running from utils directory)
+    from config import SERIAL_CONFIG, MOTOR_CONFIG, ROBOT_CONFIG
 except ImportError:
-    print("❌ Could not import utils.config. Make sure it's in the same directory.")
-    sys.exit(1)
+    try:
+        # Try utils.config import (when running from parent directory)
+        from utils.config import SERIAL_CONFIG, MOTOR_CONFIG, ROBOT_CONFIG
+    except ImportError:
+        print("❌ Could not import config. Make sure config.py is available.")
+        print("   Try running from the project root or utils directory.")
+        sys.exit(1)
 
 # Try to import required modules
 try:
@@ -53,7 +62,7 @@ class SimpleRobotController:
         self.home_position = MOTOR_CONFIG.HOME_POSITION.copy()
         
         # Current positions
-        self.current_positions = {joint: 0.0 for joint in self.motor_ids.keys()}
+        self.current_positions = dict.fromkeys(self.motor_ids.keys(), 0.0)
         
         # Track which servos are responding
         self.responding_servos = set()
@@ -135,7 +144,7 @@ class SimpleRobotController:
     def read_positions(self):
         """Read current positions from all servos."""
         if not self.is_connected:
-            print("❌ Robot not connected")
+            print(NOT_CONNECTED_ERROR)
             return
         
         try:
@@ -170,7 +179,7 @@ class SimpleRobotController:
             speed: Movement speed (0-1000)
         """
         if not self.is_connected:
-            print("❌ Robot not connected")
+            print(NOT_CONNECTED_ERROR)
             return False
         
         try:
@@ -180,7 +189,7 @@ class SimpleRobotController:
                 print(f"⚠️  Servo {motor_id} not responding - attempting to move anyway")
             
             # Set servo angle with speed control
-            result = self.servo_manager.set_servo_angle(motor_id, angle, speed)
+            self.servo_manager.set_servo_angle(motor_id, angle, speed)
             
             # Give servo time to start moving
             time.sleep(0.1)
@@ -292,8 +301,6 @@ class SimpleRobotController:
             # Check if we're in face tracking mode
             if constraint_manager.is_face_tracking_mode():
                 print("🎯 Face tracking mode detected - applying fixed joint constraints")
-                fixed_joints = constraint_manager.get_fixed_joints()
-                active_joints = constraint_manager.get_active_joints()
                 
                 # Validate each joint movement
                 for joint, angle in joint_angles.items():
@@ -456,11 +463,11 @@ class SimpleRobotController:
                 if angle is not None:
                     print(f"  ✅ Query angle: {angle}°")
                 else:
-                    print(f"  ❌ Query angle: No response")
+                    print("  ❌ Query angle: No response")
                     continue
                 
                 # Test 2: Small movement
-                print(f"  🔄 Testing small movement...")
+                print("  🔄 Testing small movement...")
                 original_angle = angle
                 test_angle = angle + 5  # Small 5-degree movement
                 
@@ -481,13 +488,13 @@ class SimpleRobotController:
                         else:
                             print(f"  ⚠️  Movement test: Partial ({original_angle}° → {new_angle}°, target: {test_angle}°)")
                     else:
-                        print(f"  ❌ Movement test: No response after movement")
+                        print("  ❌ Movement test: No response after movement")
                     
                     # Return to original position
                     self.servo_manager.set_servo_angle(motor_id, original_angle, 50)
                     time.sleep(0.5)
                 else:
-                    print(f"  ⚠️  Skipping movement test (would exceed limits)")
+                    print("  ⚠️  Skipping movement test (would exceed limits)")
                 
             except Exception as e:
                 print(f"  ❌ Error testing {joint}: {e}")

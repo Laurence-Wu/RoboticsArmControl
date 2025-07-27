@@ -10,6 +10,7 @@ Usage:
 """
 
 import os
+import json
 from pathlib import Path
 
 # =============================================================================
@@ -20,7 +21,7 @@ class SerialConfig:
     """Serial communication settings."""
     
     # Default USB ports (update these with your actual ports)
-    DEFAULT_PORT = "/dev/tty.usbserial-144140"
+    DEFAULT_PORT = "/dev/tty.usbserial-143110"
     LEADER_PORT = "/dev/tty.usbmodem575E0031751"    # For teleoperation leader arm
     FOLLOWER_PORT = "/dev/tty.usbmodem575E0032081"  # For teleoperation follower arm
     
@@ -78,6 +79,9 @@ class SerialConfig:
 class MotorConfig:
     """Motor and servo configuration settings."""
     
+    # Constants
+    HOME_POSITION_FILENAME = "HOME.json"
+    
     # Motor IDs for 6-DOF arm + gripper
     MOTOR_IDS = {
         "joint1": 0,    # Base rotation
@@ -116,13 +120,58 @@ class MotorConfig:
     MAX_SPEED = 1000           # Maximum speed
     POSITION_TOLERANCE = 2.0   # Position tolerance in degrees
     
-    # Home position (safe starting position)
-    HOME_POSITION = {'joint1': -0.2, 'joint2': -56.9, 'joint3': -132.4, 'joint4': 0.2, 'joint5': 32.8, 'joint6': -88.6, 'gripper': 0.0}
-    
+    # Home position (loaded from JSON file)
+    HOME_POSITION = None  # Will be loaded from JSON file
     
     # Gripper positions
     GRIPPER_OPEN = 45    # Degrees for open gripper
     GRIPPER_CLOSED = -45 # Degrees for closed gripper
+    
+    @classmethod
+    def load_home_position(cls):
+        """Load home position from JSON file."""
+        try:
+            # Import PATH_CONFIG here to avoid circular import
+            from pathlib import Path
+            
+            # Determine the positions directory path
+            base_dir = Path(__file__).parent
+            positions_dir = base_dir.parent / "mainfiles" / "positions"
+            home_file = positions_dir / cls.HOME_POSITION_FILENAME
+            
+            if home_file.exists():
+                with open(home_file, 'r') as f:
+                    home_position = json.load(f)
+                print(f"✅ Loaded home position from {home_file}")
+                return home_position
+            else:
+                print(f"⚠️  Home position file not found: {home_file}")
+                # Fallback to default home position
+                return {'joint1': -2.9, 'joint2': -75, 'joint3': -132.4, 'joint4': 0.2, 'joint5': 63.5, 'joint6': -88.6, 'gripper': 0.0}
+        except Exception as e:
+            print(f"⚠️  Error loading home position: {e}")
+            # Fallback to default home position
+            return {'joint1': -2.9, 'joint2': -75, 'joint3': -132.4, 'joint4': 0.2, 'joint5': 63.5, 'joint6': -88.6, 'gripper': 0.0}
+    
+    @classmethod
+    def save_home_position(cls, home_position):
+        """Save home position to JSON file."""
+        try:
+            # Determine the positions directory path
+            base_dir = Path(__file__).parent
+            positions_dir = base_dir.parent / "mainfiles" / "positions"
+            positions_dir.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
+            home_file = positions_dir / cls.HOME_POSITION_FILENAME
+            
+            with open(home_file, 'w') as f:
+                json.dump(home_position, f, indent=2)
+            
+            print(f"✅ Saved home position to {home_file}")
+            cls.HOME_POSITION = home_position
+            return True
+        except Exception as e:
+            print(f"❌ Error saving home position: {e}")
+            return False
     
     @classmethod
     def get_motor_list(cls):
@@ -202,6 +251,8 @@ class PathConfig:
     # Base directories
     BASE_DIR = Path(__file__).parent
     ADVX_DIR = BASE_DIR / "advX"
+    MAINFILES_DIR = BASE_DIR.parent / "mainfiles"  # Parent directory for mainfiles
+    POSITIONS_DIR = MAINFILES_DIR / "positions"     # Positions directory
     
     # LeRobot paths
     LEROBOT_CONFIG_PATH = ADVX_DIR / "lerobot" / "common" / "robot_devices" / "robots" / "configs.py"
@@ -212,10 +263,13 @@ class PathConfig:
     CALIBRATION_DIR = CACHE_DIR / "calibration"
     LOG_DIR = BASE_DIR / "logs"
     
+    # Position files
+    HOME_POSITION_FILE = POSITIONS_DIR / MotorConfig.HOME_POSITION_FILENAME
+    
     @classmethod
     def ensure_directories(cls):
         """Create necessary directories if they don't exist."""
-        for dir_path in [cls.CACHE_DIR, cls.CALIBRATION_DIR, cls.LOG_DIR]:
+        for dir_path in [cls.CACHE_DIR, cls.CALIBRATION_DIR, cls.LOG_DIR, cls.POSITIONS_DIR]:
             dir_path.mkdir(parents=True, exist_ok=True)
 
 
@@ -228,6 +282,9 @@ SERIAL_CONFIG = SerialConfig()
 MOTOR_CONFIG = MotorConfig()
 ROBOT_CONFIG = RobotConfig()
 PATH_CONFIG = PathConfig()
+
+# Load home position from JSON file
+MOTOR_CONFIG.HOME_POSITION = MOTOR_CONFIG.load_home_position()
 
 # Convenience aliases for backward compatibility
 DEFAULT_PORT = SERIAL_CONFIG.DEFAULT_PORT
@@ -252,6 +309,24 @@ def update_port_config(new_port, port_type="default"):
     SERIAL_CONFIG.update_port(new_port, port_type)
     save_config_to_file()
     print(f"✅ Updated {port_type} port to: {new_port}")
+
+
+def update_home_position(new_home_position):
+    """
+    Update home position and save to JSON file.
+    
+    Args:
+        new_home_position: Dictionary with new home position values
+    """
+    if MOTOR_CONFIG.save_home_position(new_home_position):
+        # Update the global HOME_POSITION variable
+        global HOME_POSITION
+        HOME_POSITION = new_home_position
+        print(f"✅ Updated home position: {new_home_position}")
+        return True
+    else:
+        print("❌ Failed to update home position")
+        return False
 
 
 def save_config_to_file():
@@ -384,7 +459,7 @@ if __name__ == "__main__":
         print("\n✅ Configuration is valid!")
     
     # Test motor configuration
-    print(f"\n🔧 Motor Configuration:")
+    print("\n🔧 Motor Configuration:")
     print(f"   Motor IDs: {MOTOR_CONFIG.get_motor_list()}")
     print(f"   Joint Names: {MOTOR_CONFIG.get_joint_names()}")
     

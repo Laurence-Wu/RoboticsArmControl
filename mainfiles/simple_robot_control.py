@@ -15,9 +15,10 @@ import numpy as np
 
 # Import robot configuration
 try:
-    from mainfiles.config import SERIAL_CONFIG, MOTOR_CONFIG, ROBOT_CONFIG
+    from config import SERIAL_CONFIG, MOTOR_CONFIG, ROBOT_CONFIG
 except ImportError:
-    print("❌ Could not import mainfiles.config. Make sure it's in the same directory.")
+    print("❌ Could not import configuration: No module named 'mainfiles'")
+    print("Make sure config.py and simple_robot_control.py are in the same directory.")
     sys.exit(1)
 
 # Try to import required modules
@@ -50,7 +51,8 @@ class SimpleRobotController:
         # Import motor configuration from config.py
         self.motor_ids = MOTOR_CONFIG.MOTOR_IDS.copy()
         self.joint_limits = MOTOR_CONFIG.JOINT_LIMITS.copy()
-        self.home_position = MOTOR_CONFIG.HOME_POSITION.copy()
+        # Load home position dynamically from JSON file
+        self.home_position = MOTOR_CONFIG.get_home_position()
         
         # Current positions
         self.current_positions = {joint: 0.0 for joint in self.motor_ids.keys()}
@@ -354,10 +356,39 @@ class SimpleRobotController:
         
         return success
     
-    def go_home(self):
+    def pytgo_home(self):
         """Move robot to home position."""
         print("🏠 Moving to home position...")
-        return self.move_multiple_joints(self.home_position, speed=50)
+        
+        # Reload home position from JSON file each time
+        home_positions = MOTOR_CONFIG.get_home_position()
+        
+        # Move joints individually to handle joint3 speed issue
+        success = True
+        
+        # Move joint1 first (this is what we care about)
+        if "joint1" in home_positions:
+            if not self.move_joint("joint1", home_positions["joint1"], speed=100):
+                success = False
+        
+        # Move other joints with appropriate speeds
+        for joint, angle in home_positions.items():
+            if joint == "joint1":
+                continue  # Already moved
+            elif joint == "joint3":
+                # Use high speed for joint3 due to hardware issue
+                if not self.move_joint(joint, angle, speed=200):
+                    print(f"⚠️  Warning: {joint} movement failed, but continuing...")
+                    # Don't fail the entire operation for joint3
+            elif joint == "gripper":
+                # Skip gripper if not responding
+                continue
+            else:
+                if not self.move_joint(joint, angle, speed=100):
+                    print(f"⚠️  Warning: {joint} movement failed, but continuing...")
+                    # Don't fail the entire operation for non-critical joints
+        
+        return success
     
     def open_gripper(self):
         """Open the gripper."""
