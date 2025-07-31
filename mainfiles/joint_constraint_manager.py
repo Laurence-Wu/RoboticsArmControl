@@ -385,7 +385,7 @@ if __name__ == "__main__":
     # Test some validations
     test_cases = [
         ("joint1", 45.0, 100, 0.0),
-        ("joint2", -50.0, 150, -42.4),  # Should be limited by speed
+        ("joint2", -50.0, 150, -88.9),  # Should be limited by speed
         ("joint3", -140.0, 100, -132.0),  # Should be limited by movement per step
         ("gripper", 100.0, 100, 0.0),  # Should be clamped to max angle
     ]

@@ -1,0 +1,36 @@
+{
+  "pan_gains": {
+    "Kp": 0.15,
+    "Ki": 0.015,
+    "Kd": 0.06
+  },
+  "tilt_gains": {
+    "Kp": 0.12,
+    "Ki": 0.012,
+    "Kd": 0.055
+  },
+  "control": {
+    "dead_zone": 20.0,
+    "max_movement": 10.0,
+    "collection_duration": 2.5,
+    "pixels_to_degrees": 0.12
+  },
+  "anti_windup": {
+    "integral_min": -600.0,
+    "integral_max": 600.0
+  },
+  "safety": {
+    "safety_timeout": 45.0,
+    "max_tracking_time": 360.0,
+    "emergency_stop_enabled": true,
+    "joint_limit_enforcement": true
+  },
+  "display": {
+    "show_pid_values": true,
+    "show_error_vectors": true,
+    "show_target_lock": true,
+    "show_data_collection_progress": true,
+    "overlay_transparency": 0.8
+  },
+  "config_version": "1.0"
+}
